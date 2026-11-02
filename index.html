@@ -25,6 +25,9 @@
     --sun: #ffc94a;
     --moon: #dfe6ff;
     --accent: #ff8a5c;
+    /* Hand colors: one per set, changed by the theme picker. */
+    --norm: #ff9a00;
+    --real: #00a2ff;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; min-height: 100%; }
@@ -39,16 +42,42 @@
     padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
   }
   main { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 14px; }
-  header { display: flex; align-items: baseline; justify-content: space-between; }
-  h1 { font-size: 1.05rem; font-weight: 600; letter-spacing: 0.04em; margin: 0; text-transform: uppercase; }
-  .loc { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .layout { display: flex; flex-direction: column; gap: 14px; }
+  .side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  @media (min-width: 880px) {
+    main { max-width: 900px; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); align-items: start; }
+  }
+  header { display: flex; align-items: center; gap: 10px; }
+  h1 { font-size: 1.05rem; font-weight: 600; letter-spacing: 0.04em; margin: 0; text-transform: uppercase; white-space: nowrap; }
+  .loc { flex: 1; min-width: 0; text-align: right; font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums;
+         overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .panel {
     background: var(--panel); border: 1px solid var(--panel-border);
     border-radius: 20px; padding: 16px;
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   }
   .clock-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-  svg.dial { width: 100%; max-width: 320px; height: auto; display: block; }
+  .tile-top { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; }
+  .legend {
+    flex: 0 1 auto; display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+    background: none; border: 1px solid transparent; padding: 4px 8px 4px 4px; border-radius: 10px;
+    font-size: 0.74rem; color: var(--muted); text-align: left;
+  }
+  .legend:hover { background: rgba(255,255,255,0.06); border-color: var(--panel-border); }
+  .legend .li { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .legend svg { width: 26px; height: 12px; flex: none; overflow: visible; }
+  .legend .swap { font-size: 0.66rem; opacity: 0.8; margin-left: 32px; }
+  .zone { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .zone .t { text-align: right; min-width: 0; line-height: 1.25; }
+  .zone .abbr { font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
+  .zone .iana { font-size: 0.68rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+  #mini { width: 44px; height: 44px; flex: none; border-radius: 50%; }
+  svg.dial { width: 100%; max-width: 340px; height: auto; display: block; }
+  .hands path { stroke-linejoin: round; }
+  .hands.filled path { fill: currentColor; stroke: rgba(0, 0, 0, 0.35); stroke-width: 0.5; }
+  .hands.hollow path { fill: currentColor; fill-opacity: 0.1; stroke: currentColor; stroke-width: 0.9; stroke-dasharray: 2.4 1.6; }
+  .hands.hollow path.s { stroke-width: 0.7; stroke-dasharray: 1.8 1.2; }
   .digital {
     font-size: clamp(2.6rem, 13vw, 3.6rem); font-weight: 300;
     font-variant-numeric: tabular-nums; letter-spacing: 0.02em; line-height: 1;
@@ -56,6 +85,7 @@
   .digital .ampm { font-size: 0.4em; font-weight: 500; margin-left: 0.25em; color: var(--muted); }
   .digital .sec { font-size: 0.45em; color: var(--muted); }
   .phase { font-size: 0.9rem; color: var(--muted); text-align: center; }
+  .match { font-size: 0.78rem; color: var(--muted); text-align: center; min-height: 1.2em; font-variant-numeric: tabular-nums; }
   .progress { width: 100%; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; margin-top: 6px; }
   .progress > div { height: 100%; width: 0; border-radius: 3px; background: var(--sun); }
   .banner {
@@ -63,10 +93,11 @@
     background: rgba(255, 138, 92, 0.18); border: 1px solid rgba(255, 138, 92, 0.4);
   }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .cell { padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,0.06); }
+  .cell { padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,0.06); min-width: 0; }
   .cell .k { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
   .cell .v { font-size: 1.1rem; margin-top: 3px; font-variant-numeric: tabular-nums; }
   .cell .s { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+  .cell.wide { grid-column: 1 / -1; }
   .actions { display: flex; gap: 10px; }
   button {
     flex: 1; font: inherit; font-size: 0.9rem; color: var(--text); cursor: pointer;
@@ -75,7 +106,14 @@
   }
   button:hover { background: rgba(255,255,255,0.16); }
   button.primary { background: var(--accent); border-color: transparent; color: #1d1020; font-weight: 600; }
-  .note { font-size: 0.75rem; color: var(--muted); text-align: center; line-height: 1.4; }
+  .note { font-size: 0.75rem; color: var(--muted); text-align: center; line-height: 1.4; margin: 0; }
+  .themes-wrap { display: flex; flex-direction: column; gap: 6px; }
+  .themes-wrap .k { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .themes { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+  .theme { padding: 0; overflow: hidden; border-radius: 10px; display: grid; background: rgba(255,255,255,0.06); }
+  .theme i { display: block; height: 8px; }
+  .theme span { display: block; padding: 4px 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.03em; }
+  .theme[aria-pressed="true"] { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); }
 
   /* Location overlay */
   .overlay {
@@ -116,9 +154,13 @@
   }
   #globe:active { cursor: grabbing; }
   #globe:focus-visible { outline: 2px solid var(--sun); outline-offset: 3px; }
+  /* Each readout line is one line tall, always: long names are cut with an
+     ellipsis (full text in the tooltip) so turning the globe never makes the
+     sheet jump up and down. */
   .readout { text-align: center; display: flex; flex-direction: column; gap: 2px; margin-top: -4px; }
-  .pick { font-size: 0.88rem; min-height: 1.2em; color: var(--sun); font-variant-numeric: tabular-nums; }
-  .city { font-size: 0.8rem; min-height: 1.2em; color: var(--muted); }
+  .readout > div { height: 1.3em; line-height: 1.3em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pick { font-size: 0.88rem; color: var(--sun); font-variant-numeric: tabular-nums; }
+  .city { font-size: 0.8rem; color: var(--muted); }
   .city b { color: var(--text); font-weight: 600; }
   .results .found {
     font-size: 0.85rem; line-height: 1.4; padding: 10px 12px; border-radius: 12px;
@@ -128,7 +170,7 @@
   @keyframes flash { from { border-color: var(--sun); background: rgba(255, 201, 74, 0.28); } }
   input.flash, select.flash { animation: flash 1.4s ease-out; }
   .about-btn {
-    flex: none; background: none; border: none; padding: 4px 6px; color: var(--muted);
+    flex: none; background: none; border: none; padding: 4px 2px 4px 6px; color: var(--muted);
     font-size: 0.75rem; text-decoration: underline; text-underline-offset: 2px;
   }
   .about-btn:hover { background: none; color: var(--text); }
@@ -136,8 +178,6 @@
   .about a { color: var(--sun); }
   .about ul { margin: 0; padding-left: 18px; font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
   .about h3 { margin: 4px 0 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
-  .foot { text-align: center; }
-  .loc { max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .err { color: #ffb4a0; font-size: 0.82rem; min-height: 1em; }
 </style>
 </head>
@@ -146,10 +186,23 @@
   <header>
     <h1>Daylight Clock</h1>
     <span class="loc" id="locLabel">—</span>
+    <button class="about-btn" id="aboutBtn" type="button">About</button>
   </header>
 
+  <div class="layout">
   <section class="panel clock-wrap">
-    <svg class="dial" viewBox="0 0 200 200" aria-label="Daylight clock dial">
+    <div class="tile-top">
+      <button class="legend" id="legend" type="button" aria-label="Swap which set of hands is filled">
+        <span class="li"><svg viewBox="0 0 26 12" aria-hidden="true"><g class="hands" id="legA"><path d=""/></g></svg><span id="legAText">Daylight time</span></span>
+        <span class="li"><svg viewBox="0 0 26 12" aria-hidden="true"><g class="hands" id="legB"><path d=""/></g></svg><span id="legBText">Real time</span></span>
+        <span class="swap">⇄ tap to swap</span>
+      </button>
+      <div class="zone" title="Time zone of the selected location">
+        <div class="t"><div class="abbr" id="tzAbbr">—</div><div class="iana" id="tzName"></div></div>
+        <canvas id="mini" width="44" height="44" aria-hidden="true"></canvas>
+      </div>
+    </div>
+    <svg class="dial" viewBox="-18 -18 236 236" aria-label="Daylight clock dial">
       <defs>
         <clipPath id="upper"><rect x="0" y="0" width="200" height="100"/></clipPath>
         <clipPath id="lower"><rect x="0" y="100" width="200" height="100"/></clipPath>
@@ -160,32 +213,47 @@
       <line x1="6" y1="100" x2="194" y2="100" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 3" opacity="0.8"/>
       <g id="ticks"></g>
       <g id="nums" font-size="9" fill="var(--muted)" text-anchor="middle" dominant-baseline="central"></g>
-      <circle id="minRing" cx="100" cy="100" r="96" fill="none" stroke="var(--text)" stroke-width="2" stroke-linecap="round" opacity="0.6" pathLength="60" stroke-dasharray="0 60" transform="rotate(-90 100 100)"/>
-      <line id="hourHand" x1="100" y1="100" x2="100" y2="40" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
-      <circle id="body" cx="100" cy="40" r="7" fill="var(--sun)"/>
+      <!-- Outer minute/second ring, 0 to 60 -->
+      <circle cx="100" cy="100" r="97" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.6"/>
+      <g id="ring"></g>
+      <g id="ringNums" font-size="6.6" fill="var(--muted)" text-anchor="middle" dominant-baseline="central"></g>
+      <g id="notches"></g>
+      <g class="hands" id="setNorm" style="color: var(--norm)">
+        <path class="h" id="nH"/><path class="m" id="nM"/><path class="s" id="nS"/>
+      </g>
+      <g class="hands" id="setReal" style="color: var(--real)">
+        <path class="h" id="rH"/><path class="m" id="rM"/><path class="s" id="rS"/>
+      </g>
       <circle cx="100" cy="100" r="3" fill="var(--text)"/>
     </svg>
     <div class="digital" id="digital">--:--</div>
     <div class="phase" id="phase">Waiting for location…</div>
+    <div class="match" id="match"></div>
     <div class="progress"><div id="bar"></div></div>
   </section>
 
-  <div class="banner" id="banner" hidden></div>
+  <div class="side">
+    <div class="banner" id="banner" hidden></div>
 
-  <section class="panel grid">
-    <div class="cell"><div class="k">Real time</div><div class="v" id="realTime">—</div><div class="s" id="realDate">—</div></div>
-    <div class="cell"><div class="k" id="nextLabel">Next</div><div class="v" id="nextTime">—</div><div class="s" id="nextIn">—</div></div>
-    <div class="cell"><div class="k" id="prevLabel">Previous</div><div class="v" id="prevTime">—</div><div class="s" id="prevAgo">—</div></div>
-    <div class="cell"><div class="k">Day length</div><div class="v" id="dayLen">—</div><div class="s" id="nightLen">—</div></div>
-    <div class="cell" style="grid-column: 1 / -1"><div class="k">Right now, one clock hour lasts</div><div class="v" id="rate">—</div><div class="s" id="rateNote">—</div></div>
-  </section>
+    <section class="panel grid">
+      <div class="cell"><div class="k">Real time</div><div class="v" id="realTime">—</div><div class="s" id="realDate">—</div></div>
+      <div class="cell"><div class="k">Day length</div><div class="v" id="dayLen">—</div><div class="s" id="nightLen">—</div></div>
+      <div class="cell"><div class="k" id="riseLabel">Sunrise</div><div class="v" id="riseTime">—</div><div class="s" id="riseWhen">—</div></div>
+      <div class="cell"><div class="k" id="setLabel">Sunset</div><div class="v" id="setTime">—</div><div class="s" id="setWhen">—</div></div>
+      <div class="cell wide"><div class="k">Right now, one clock hour lasts</div><div class="v" id="rate">—</div><div class="s" id="rateNote">—</div></div>
+    </section>
 
-  <div class="actions">
-    <button id="locBtn">Change location</button>
-    <button id="fmtBtn">24-hour</button>
+    <div class="actions">
+      <button id="locBtn">Change location</button>
+      <button id="fmtBtn">24-hour</button>
+    </div>
+    <div class="themes-wrap">
+      <div class="k">Theme</div>
+      <div class="themes" id="themes" role="group" aria-label="Hand colors"></div>
+    </div>
+    <p class="note">Sunrise is always 6:00 AM and sunset 6:00 PM; the hours between stretch or shrink to fit. Real times are in the selected location's time zone.</p>
   </div>
-  <p class="note">Sunrise is always 6:00 AM and sunset 6:00 PM; the hours between stretch or shrink to fit. Real times use this device's time zone.</p>
-  <div class="foot"><button class="about-btn" id="aboutBtn" type="button">About</button></div>
+  </div>
 </main>
 
 <div class="overlay" id="overlay">
@@ -204,6 +272,8 @@
     <div class="readout" aria-live="polite">
       <div class="pick" id="pickName"></div>
       <div class="city" id="cityLine"></div>
+      <div class="city" id="cityDist"></div>
+      <div class="city" id="tzLine"></div>
     </div>
     <div class="row">
       <label>Latitude<span class="pair"><input id="latIn" type="number" step="any" min="0" max="90" inputmode="decimal" placeholder="0"><select id="latHem"><option>N</option><option>S</option></select></span></label>
@@ -226,18 +296,21 @@
     <h3>Changelog</h3>
     <ul>
       <li>2026-11-02: Installable app that works offline; crosshair globe with nearest big city; clearer place search.</li>
+      <li>2026-11-02: Time zone follows the location; hour, minute and second hands for daylight and real time, a 60 ring, match markers, themes, and a mini globe.</li>
     </ul>
     <h3>Credits</h3>
     <ul>
       <li>Sun positions: NOAA solar calculator equations.</li>
       <li>Coastlines: Natural Earth, via world-atlas.</li>
       <li>Cities: GeoNames (CC BY 4.0).</li>
+      <li>Time zones: tz-lookup by PhotoStructure (CC0).</li>
       <li>Place search: Open-Meteo and OpenStreetMap Nominatim.</li>
     </ul>
     <button id="aboutClose" type="button">Close</button>
   </div>
 </div>
 
+<script src="lib/tz-lookup.js"></script>
 <script>
 (() => {
   const DAY = 86400000, RAD = Math.PI / 180;
@@ -309,17 +382,78 @@
     }
     return null;
   }
+  // Daylight-clock hour (0-24) for a sun-event span.
+  const normHourOf = (r, t) => {
+    const f = (t - r.start) / (r.end - r.start);
+    return r.phase === 'day' ? 6 + 12 * f : (18 + 12 * f) % 24;
+  };
+
+  // ---------- Time zone of the selected location ----------
+  // The real time comes from this device's clock, shifted to the location's
+  // zone. The zone is looked up offline from the coordinates; if that fails,
+  // fall back to the nautical zone for the longitude.
+  const zoneOk = z => { try { new Intl.DateTimeFormat('en-US', { timeZone: z }); return true; } catch (e) { return false; } };
+  function zoneFor(lat, lon) {
+    try {
+      const z = window.tzlookup && window.tzlookup(Math.max(-90, Math.min(90, lat)), Math.max(-180, Math.min(180, lon)));
+      if (z && zoneOk(z)) return z;
+    } catch (e) {}
+    const n = Math.max(-12, Math.min(14, Math.round(lon / 15)));
+    // Etc/GMT signs are inverted: Etc/GMT+5 is UTC-5.
+    return n === 0 ? 'Etc/GMT' : `Etc/GMT${n > 0 ? '-' : '+'}${Math.abs(n)}`;
+  }
+  let tz = 'UTC', partsFmt = null, fmtCache = {};
+  function setZone(z) {
+    tz = z;
+    partsFmt = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' });
+    fmtCache = {};
+  }
+  // Milliseconds to add to UTC to get the zone's wall-clock time at `ms`.
+  function zoneOffset(ms) {
+    const p = {};
+    for (const { type, value } of partsFmt.formatToParts(ms)) p[type] = +value;
+    const wall = Date.UTC(p.year, p.month - 1, p.day, p.hour % 24, p.minute, p.second);
+    return wall - Math.floor(ms / 1000) * 1000;
+  }
+  const realHourAt = ms => (((ms + zoneOffset(ms)) % DAY) + DAY) % DAY / 3600000;
+  function zoneAbbr(ms) {
+    try {
+      const part = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'short' }).formatToParts(ms).find(x => x.type === 'timeZoneName');
+      // Zones without a common abbreviation come back as "GMT+9"; say UTC instead.
+      return part && !/^(GMT|UTC)/.test(part.value) ? part.value : utcLabel(ms);
+    } catch (e) { return utcLabel(ms); }
+  }
+  function utcLabel(ms) {
+    const m = Math.round(zoneOffset(ms) / 60000), a = Math.abs(m);
+    return `UTC${m < 0 ? '−' : '+'}${Math.floor(a / 60)}${a % 60 ? ':' + String(a % 60).padStart(2, '0') : ''}`;
+  }
+  function zoneTitle(z) {
+    const m = /^Etc\/GMT(?:([+-])(\d+))?$/.exec(z);
+    if (m) return `Open ocean (UTC${m[1] ? (m[1] === '+' ? '−' : '+') + m[2] : ''})`;
+    return z.replace(/_/g, ' ');
+  }
 
   // ---------- State ----------
-  let loc = null, use24 = false;
+  const THEMES = [
+    { name: 'Portal', norm: '#ff9a00', real: '#00a2ff' },
+    { name: 'Citrus', norm: '#ffe14d', real: '#9b7bff' },
+    { name: 'Phosphor', norm: '#3dff8a', real: '#ff4fd8' },
+    { name: 'Coral', norm: '#ff6f91', real: '#4ee6c8' },
+    { name: 'Ember', norm: '#ff5a36', real: '#ffd0a1' },
+    { name: 'Mono', norm: '#ffffff', real: '#9aa6bd' }
+  ];
+  let loc = null, use24 = false, filled = 'norm', theme = 0;
   try {
     const s = JSON.parse(localStorage.getItem('daylightClock') || '{}');
     if (typeof s.lat === 'number' && typeof s.lon === 'number') loc = { lat: s.lat, lon: s.lon, name: typeof s.name === 'string' ? s.name : null };
     use24 = !!s.use24;
+    if (s.filled === 'real') filled = 'real';
+    if (Number.isInteger(s.theme) && THEMES[s.theme]) theme = s.theme;
   } catch (e) {}
   function save() {
-    try { localStorage.setItem('daylightClock', JSON.stringify({ ...(loc || {}), use24 })); } catch (e) {}
+    try { localStorage.setItem('daylightClock', JSON.stringify({ ...(loc || {}), use24, filled, theme })); } catch (e) {}
   }
+  setZone(loc ? zoneFor(loc.lat, loc.lon) : (Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'));
 
   // ---------- Dial setup ----------
   const ticks = $('ticks'), nums = $('nums');
@@ -329,6 +463,16 @@
     const [x1, y1] = pt(deg, major ? 84 : 87), [x2, y2] = pt(deg, 92);
     ticks.insertAdjacentHTML('beforeend',
       `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="rgba(255,255,255,${major ? 0.7 : 0.35})" stroke-width="${major ? 1.4 : 0.8}"/>`);
+  }
+  // Outer ring: 60 minute/second ticks, labelled every 5.
+  for (let i = 0; i < 60; i++) {
+    const major = i % 5 === 0, [x1, y1] = pt(i * 6, 97), [x2, y2] = pt(i * 6, major ? 101.5 : 99.5);
+    $('ring').insertAdjacentHTML('beforeend',
+      `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="rgba(255,255,255,${major ? 0.6 : 0.3})" stroke-width="${major ? 0.9 : 0.5}"/>`);
+    if (major) {
+      const [x, y] = pt(i * 6, 107.5);
+      $('ringNums').insertAdjacentHTML('beforeend', `<text x="${x}" y="${y}">${i}</text>`);
+    }
   }
   function drawNumbers() {
     nums.innerHTML = '';
@@ -342,6 +486,64 @@
   }
   drawNumbers();
   $('fmtBtn').textContent = use24 ? '12-hour' : '24-hour';
+
+  // A hand pointing straight up from (0,0): a shaft that ends in a chevron.
+  // len: tip distance, w: shaft width, c: half-span of the chevron,
+  // h: how far its wings sweep back, t: its thickness.
+  function handPath(len, w, c, h, t) {
+    const tip = -len, inner = tip + t, yw = inner + (w / 2) * (h / c);
+    const P = [[w / 2, 0], [w / 2, yw], [c, tip + h + t], [c, tip + h], [0, tip], [-c, tip + h], [-c, tip + h + t], [-w / 2, yw], [-w / 2, 0]];
+    return 'M' + P.map(p => p.map(v => +v.toFixed(2)).join(' ')).join('L') + 'Z';
+  }
+  const HANDS = {
+    h: handPath(60, 5, 8.5, 8.5, 4.2),
+    m: handPath(86, 3.2, 6.5, 7, 3.4),
+    s: handPath(98, 1.6, 4.6, 5.2, 2.3)
+  };
+  for (const set of ['n', 'r']) for (const k of ['H', 'M', 'S']) $(set + k).setAttribute('d', HANDS[k.toLowerCase()]);
+  const turn = (id, deg) => $(id).setAttribute('transform', `translate(100 100) rotate(${deg.toFixed(3)})`);
+
+  // Legend swatches: the same chevron lying on its side.
+  const legendPath = handPath(24, 2.4, 5, 5.5, 2.6);
+  for (const id of ['legA', 'legB']) {
+    const p = $(id).firstElementChild;
+    p.setAttribute('d', legendPath);
+    p.setAttribute('transform', 'translate(1 6) rotate(90)');
+  }
+  function applyHands() {
+    const nf = filled === 'norm';
+    $('setNorm').setAttribute('class', 'hands ' + (nf ? 'filled' : 'hollow'));
+    $('setReal').setAttribute('class', 'hands ' + (nf ? 'hollow' : 'filled'));
+    // Hollow hands draw on top so their outline shows over the filled set.
+    const svg = $('setNorm').parentNode, hub = svg.lastElementChild;
+    svg.insertBefore($(nf ? 'setNorm' : 'setReal'), hub);
+    svg.insertBefore($(nf ? 'setReal' : 'setNorm'), hub);
+    $('legA').setAttribute('class', 'hands filled'); $('legB').setAttribute('class', 'hands hollow');
+    $('legA').style.color = nf ? 'var(--norm)' : 'var(--real)';
+    $('legB').style.color = nf ? 'var(--real)' : 'var(--norm)';
+    $('legAText').textContent = nf ? 'Daylight time' : 'Real time';
+    $('legBText').textContent = nf ? 'Real time' : 'Daylight time';
+  }
+  applyHands();
+  $('legend').onclick = () => { filled = filled === 'norm' ? 'real' : 'norm'; save(); applyHands(); };
+
+  // ---------- Themes ----------
+  function applyTheme(i) {
+    theme = i;
+    document.documentElement.style.setProperty('--norm', THEMES[i].norm);
+    document.documentElement.style.setProperty('--real', THEMES[i].real);
+    for (const b of $('themes').children) b.setAttribute('aria-pressed', String(+b.dataset.i === i));
+  }
+  THEMES.forEach((t, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'theme'; b.dataset.i = i;
+    b.title = `${t.name}: daylight hands ${t.norm}, real-time hands ${t.real}`;
+    b.innerHTML = `<i style="background:${t.norm}"></i><i style="background:${t.real}"></i><span></span>`;
+    b.lastElementChild.textContent = t.name;
+    b.onclick = () => { applyTheme(i); save(); };
+    $('themes').appendChild(b);
+  });
+  applyTheme(theme);
 
   // ---------- Sky colors ----------
   const stops = [
@@ -363,9 +565,11 @@
     return [stops[0][1], stops[0][2]];
   }
 
-  // ---------- Formatting ----------
-  const fmtReal = ms => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  const fmtDate = ms => new Date(ms).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  // ---------- Formatting (in the location's time zone) ----------
+  const fmt = (key, opts) => fmtCache[key] || (fmtCache[key] = new Intl.DateTimeFormat([], { ...opts, timeZone: tz }));
+  const fmtReal = ms => fmt('hm', { hour: 'numeric', minute: '2-digit' }).format(ms);
+  const fmtRealSec = ms => fmt('hms', { hour: 'numeric', minute: '2-digit', second: '2-digit' }).format(ms);
+  const fmtDate = ms => fmt('d', { weekday: 'short', month: 'short', day: 'numeric' }).format(ms);
   function fmtDur(ms) {
     const m = Math.round(Math.abs(ms) / 60000);
     const h = Math.floor(m / 60), r = m % 60;
@@ -379,9 +583,46 @@
     return `${Math.floor(m / 60)} h ${m % 60} min`;
   }
   const fmtLoc = l => `${Math.abs(l.lat).toFixed(3)}°${l.lat >= 0 ? 'N' : 'S'}, ${Math.abs(l.lon).toFixed(3)}°${l.lon >= 0 ? 'E' : 'W'}`;
+  const clockLabel = h => use24 ? `${String(h).padStart(2, '0')}:00` : `${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
+
+  // ---------- When the two clocks agree ----------
+  // Over the next 24 hours, find each moment the daylight time equals the
+  // real time; the dial marks where on the 24-hour face that happens.
+  let matches = null;
+  function findMatches(now) {
+    const diff = t => {
+      const r = compute(t, loc.lat, loc.lon);
+      if (!r) return null;
+      let d = normHourOf(r, t) - realHourAt(t);
+      d = ((d + 12) % 24 + 24) % 24 - 12;
+      return d;
+    };
+    const out = [], STEP = 10 * 60000;
+    let t0 = now, d0 = diff(t0);
+    for (let t1 = now + STEP; t1 <= now + DAY; t1 += STEP) {
+      const d1 = diff(t1);
+      // A sign change near zero is a match; one near ±12 is just the wrap.
+      if (d0 !== null && d1 !== null && (d0 === 0 || d0 * d1 < 0) && Math.abs(d0 - d1) < 6) {
+        let a = t0, b = t1, da = d0;
+        for (let k = 0; k < 24; k++) {
+          const m = (a + b) / 2, dm = diff(m);
+          if (dm === null) break;
+          if (da * dm <= 0) b = m; else { a = m; da = dm; }
+        }
+        out.push({ t: b, hour: realHourAt(b) });
+      }
+      t0 = t1; d0 = d1;
+    }
+    matches = { at: now, list: out };
+    $('notches').innerHTML = out.map(m => {
+      const deg = (m.hour - 12) * 15, [tx, ty] = pt(deg, 91.2), [ax, ay] = pt(deg - 2.6, 96.4), [bx, by] = pt(deg + 2.6, 96.4);
+      return `<path d="M${tx} ${ty}L${ax} ${ay}L${bx} ${by}Z" fill="var(--text)" stroke="rgba(0,0,0,0.4)" stroke-width="0.4"><title>The clocks agree at ${fmtReal(m.t)}</title></path>`;
+    }).join('');
+  }
 
   // ---------- Render loop ----------
-  let cache = null; // recompute sun events once a second at most
+  let cache = null; // recompute sun events once a minute at most
+  const pad = n => String(n).padStart(2, '0');
   function frame() {
     requestAnimationFrame(frame);
     if (!loc) return;
@@ -391,21 +632,19 @@
     }
     const r = cache.res;
     if (!r) return;
+    if (!matches || now - matches.at > 10 * 60000 || (matches.list[0] && now > matches.list[0].t)) findMatches(now);
     const f = (now - r.start) / (r.end - r.start);
-    const dh = r.phase === 'day' ? 6 + 12 * f : (18 + 12 * f) % 24;
+    const dh = normHourOf(r, now);
 
-    const H = Math.floor(dh), mFloat = (dh - H) * 60, M = Math.floor(mFloat), S = Math.floor((mFloat - M) * 60);
-    const pad = n => String(n).padStart(2, '0');
+    const H = Math.floor(dh), mFloat = (dh - H) * 60, M = Math.floor(mFloat), sFloat = (mFloat - M) * 60, S = Math.floor(sFloat);
     $('digital').innerHTML = use24
       ? `${pad(H)}:${pad(M)}<span class="sec">:${pad(S)}</span>`
       : `${H % 12 || 12}:${pad(M)}<span class="sec">:${pad(S)}</span><span class="ampm">${H < 12 ? 'AM' : 'PM'}</span>`;
 
-    // Hands
-    const [hx, hy] = pt((dh - 12) * 15, 66);
-    $('hourHand').setAttribute('x2', hx); $('hourHand').setAttribute('y2', hy);
-    $('body').setAttribute('cx', hx); $('body').setAttribute('cy', hy);
-    $('body').setAttribute('fill', r.phase === 'day' ? 'var(--sun)' : 'var(--moon)');
-    $('minRing').setAttribute('stroke-dasharray', `${mFloat.toFixed(3)} 60`);
+    // Hands: the hour hand reads the 24-hour face; minute and second hands read the 0-60 ring.
+    turn('nH', (dh - 12) * 15); turn('nM', mFloat * 6); turn('nS', sFloat * 6);
+    const off = zoneOffset(now), wall = ((now + off) % DAY + DAY) % DAY, rh = wall / 3600000;
+    turn('rH', (rh - 12) * 15); turn('rM', (wall % 3600000) / 60000 * 6); turn('rS', (wall % 60000) / 1000 * 6);
 
     // Sky
     const [top, bot] = sky(dh);
@@ -417,16 +656,21 @@
     $('phase').textContent = `${isDay ? 'Daytime' : 'Night'} · ${Math.floor(f * 100)}% of the way to ${isDay ? 'sunset' : 'sunrise'}`;
     $('bar').style.width = (f * 100).toFixed(2) + '%';
     $('bar').style.background = isDay ? 'var(--sun)' : 'var(--moon)';
+    const next = matches.list.find(m => m.t > now);
+    $('match').textContent = next
+      ? `▲ The clocks agree next at ${fmtReal(next.t)}, in ${fmtDur(next.t - now)}`
+      : '▲ The clocks don\'t agree at any point in the next day';
 
     // Cells
-    $('realTime').textContent = new Date(now).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
-    $('realDate').textContent = fmtDate(now);
-    $('nextLabel').textContent = isDay ? 'Sunset (6:00 PM)' : 'Sunrise (6:00 AM)';
-    $('nextTime').textContent = fmtReal(r.end);
-    $('nextIn').textContent = `in ${fmtDur(r.end - now)}`;
-    $('prevLabel').textContent = isDay ? 'Sunrise (6:00 AM)' : 'Sunset (6:00 PM)';
-    $('prevTime').textContent = fmtReal(r.start);
-    $('prevAgo').textContent = `${fmtDur(now - r.start)} ago`;
+    $('realTime').textContent = fmtRealSec(now);
+    $('realDate').textContent = `${fmtDate(now)} · ${zoneAbbr(now)}`;
+    const rise = isDay ? r.start : r.end, set = isDay ? r.end : r.start;
+    $('riseLabel').textContent = `Sunrise · ${clockLabel(6)}`;
+    $('setLabel').textContent = `Sunset · ${clockLabel(18)}`;
+    $('riseTime').textContent = fmtReal(rise);
+    $('setTime').textContent = fmtReal(set);
+    $('riseWhen').textContent = rise > now ? `in ${fmtDur(rise - now)}` : `${fmtDur(now - rise)} ago`;
+    $('setWhen').textContent = set > now ? `in ${fmtDur(set - now)}` : `${fmtDur(now - set)} ago`;
 
     const dayLen = isDay ? r.end - r.start : r.nextDay[1] - r.nextDay[0];
     const nightLen = isDay ? (r.prevNight ? r.prevNight[1] - r.prevNight[0] : DAY - dayLen) : r.end - r.start;
@@ -441,30 +685,32 @@
 
     // Polar note
     const banner = $('banner'), polar = r.today.polar;
-    if (polar === 'day') {
-      banner.hidden = false;
-      banner.textContent = "The sun doesn't set here today. 6:00 PM and 6:00 AM mark solar midnight, when it dips closest to the horizon.";
-    } else if (polar === 'night') {
-      banner.hidden = false;
-      banner.textContent = "The sun doesn't rise here today. 6:00 AM and 6:00 PM mark solar noon, when it climbs closest to the horizon.";
-    } else {
-      // Warn when the location is far from the device's time zone (e.g. E/W sign slip).
-      const tzHours = -new Date(now).getTimezoneOffset() / 60;
-      let diff = Math.abs(loc.lon / 15 - tzHours) % 24; diff = Math.min(diff, 24 - diff);
-      if (diff > 3) {
-        banner.hidden = false;
-        banner.textContent = `This location is about ${Math.round(diff)} hours from your device's time zone, so the clock shows that place's daylight time. If that's not intended, check the longitude's E/W.`;
-      } else banner.hidden = true;
-    }
+    banner.hidden = !polar;
+    if (polar === 'day') banner.textContent = "The sun doesn't set here today. 6:00 PM and 6:00 AM mark solar midnight, when it dips closest to the horizon.";
+    else if (polar === 'night') banner.textContent = "The sun doesn't rise here today. 6:00 AM and 6:00 PM mark solar noon, when it climbs closest to the horizon.";
+
+    // Zone label and mini globe, once a minute.
+    if (!zoneShownAt || now - zoneShownAt > 60000) showZone(now);
   }
 
   // ---------- Location ----------
   const locText = l => l.name || fmtLoc(l);
+  let zoneShownAt = 0;
+  function showZone(now) {
+    zoneShownAt = now;
+    const abbr = zoneAbbr(now), utc = utcLabel(now);
+    $('tzAbbr').textContent = abbr === utc ? utc : `${abbr} · ${utc}`;
+    $('tzName').textContent = zoneTitle(tz);
+    $('tzName').title = tz;
+    renderMini();
+  }
   function setLoc(lat, lon, name) {
-    loc = { lat, lon, name: name || null }; cache = null; save();
+    loc = { lat, lon, name: name || null }; cache = null; matches = null; save();
+    setZone(zoneFor(lat, lon));
     $('locLabel').textContent = locText(loc);
     $('locLabel').title = fmtLoc(loc);
     $('overlay').classList.remove('show');
+    showZone(Date.now());
   }
   function openOverlay(msg) {
     $('err').textContent = msg || '';
@@ -498,11 +744,14 @@
     );
   }
 
-  // ---------- Globe ----------
-  // The point under the crosshairs (the globe's center) is the picked location.
+  // ---------- Globes ----------
+  // On the big globe, the point under the crosshairs (its center) is the picked
+  // location. The mini globe in the clock tile is centered on the saved one.
   const globe = $('globe'), gctx = globe.getContext('2d');
+  const mini = $('mini'), mctx = mini.getContext('2d');
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   globe.width = globe.height = Math.round(240 * dpr);
+  mini.width = mini.height = Math.round(44 * Math.max(2, dpr));
   const MW = 1024, MH = 512;
   let landMask = null, landLoading = false, landTried = false;
   let view = { lat: 25, lon: -60 }, pickName = null, renderQueued = false;
@@ -553,7 +802,7 @@
         const d = x.getImageData(0, 0, MW, MH).data;
         landMask = new Uint8Array(MW * MH);
         for (let i = 0; i < landMask.length; i++) landMask[i] = d[i * 4 + 3] > 127 ? 1 : 0;
-        renderGlobe();
+        renderGlobe(); renderMini();
       })
       .catch(() => {})
       .finally(() => { landLoading = false; landTried = true; });
@@ -611,12 +860,13 @@
     return [c + r * Math.cos(p) * Math.sin(dl), c - r * (Math.cos(p0) * Math.sin(p) - Math.sin(p0) * Math.cos(p) * Math.cos(dl))];
   }
 
-  function renderGlobe() {
-    const N = globe.width, r = N / 2 - 1, c = N / 2;
-    const img = gctx.createImageData(N, N), px = img.data;
-    const p0 = view.lat * RAD, l0 = view.lon * RAD, sp0 = Math.sin(p0), cp0 = Math.cos(p0);
+  // Land, graticule and sunlight for a globe centered on `v`.
+  function paintGlobe(ctx, N, v, lineW) {
+    const r = N / 2 - 1, c = N / 2;
+    const img = ctx.createImageData(N, N), px = img.data;
+    const p0 = v.lat * RAD, l0 = v.lon * RAD, sp0 = Math.sin(p0), cp0 = Math.cos(p0);
     const sun = subsolar(Date.now()), sD = Math.sin(sun.lat), cD = Math.cos(sun.lat);
-    const G = 30 * RAD, T = 0.6 * RAD;
+    const G = 30 * RAD, T = 0.6 * RAD * (240 / N) * (N > 120 ? 1 : 0.6);
     for (let j = 0; j < N; j++) {
       const y = (c - j - 0.5) / r;
       for (let i = 0; i < N; i++) {
@@ -643,10 +893,32 @@
         px[o] = R * k; px[o + 1] = Gc * k; px[o + 2] = B * k; px[o + 3] = 255;
       }
     }
-    gctx.clearRect(0, 0, N, N);
-    gctx.putImageData(img, 0, 0);
-    gctx.beginPath(); gctx.arc(c, c, r, 0, 2 * Math.PI);
-    gctx.strokeStyle = 'rgba(255,255,255,0.35)'; gctx.lineWidth = dpr; gctx.stroke();
+    ctx.clearRect(0, 0, N, N);
+    ctx.putImageData(img, 0, 0);
+    ctx.beginPath(); ctx.arc(c, c, r, 0, 2 * Math.PI);
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = lineW; ctx.stroke();
+    return { r, c };
+  }
+  function crosshairs(ctx, c, r, gap, lw, ringW) {
+    ctx.lineWidth = lw; ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+    ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 2 * lw;
+    ctx.beginPath();
+    ctx.moveTo(c - r, c); ctx.lineTo(c - gap, c); ctx.moveTo(c + gap, c); ctx.lineTo(c + r, c);
+    ctx.moveTo(c, c - r); ctx.lineTo(c, c - gap); ctx.moveTo(c, c + gap); ctx.lineTo(c, c + r);
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(c, c, gap, 0, 2 * Math.PI);
+    ctx.strokeStyle = '#ff8a5c'; ctx.lineWidth = ringW; ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  function renderMini() {
+    if (!loc) return;
+    const k = mini.width / 44, { r, c } = paintGlobe(mctx, mini.width, loc, k * 0.8);
+    crosshairs(mctx, c, r, 3 * k, 0.8 * k, 1.3 * k);
+  }
+
+  function renderGlobe() {
+    const N = globe.width;
+    const { r, c } = paintGlobe(gctx, N, view, dpr);
 
     // Nearest big city: a ring on the globe plus the readout below it.
     const near = nearestCity(view.lat, view.lon);
@@ -669,25 +941,19 @@
         }
       }
       const place = `${near.city.name}, ${countries[near.city.cc] || near.city.cc}`;
-      $('cityLine').innerHTML = near.km < 2
-        ? `Nearest big city: <b></b>`
-        : `Nearest big city: <b></b> · crosshairs ${fmtDist(near.km)} ${near.dir} of it`;
+      $('cityLine').innerHTML = 'Nearest big city: <b></b>';
       $('cityLine').querySelector('b').textContent = place;
-    } else $('cityLine').textContent = '';
+      $('cityLine').title = place;
+      $('cityDist').textContent = near.km < 2 ? 'Crosshairs are right on it' : `Crosshairs are ${fmtDist(near.km)} ${near.dir} of it`;
+    } else { $('cityLine').textContent = ''; $('cityDist').textContent = ''; }
+    const z = zoneFor(view.lat, view.lon);
+    $('tzLine').textContent = `Time zone: ${zoneTitle(z)}`;
+    $('tzLine').title = z;
 
-    // Crosshairs across the middle.
-    const gap = 6 * dpr;
-    gctx.lineWidth = 1.25 * dpr; gctx.strokeStyle = 'rgba(255,255,255,0.8)';
-    gctx.shadowColor = 'rgba(0,0,0,0.6)'; gctx.shadowBlur = 2 * dpr;
-    gctx.beginPath();
-    gctx.moveTo(c - r, c); gctx.lineTo(c - gap, c); gctx.moveTo(c + gap, c); gctx.lineTo(c + r, c);
-    gctx.moveTo(c, c - r); gctx.lineTo(c, c - gap); gctx.moveTo(c, c + gap); gctx.lineTo(c, c + r);
-    gctx.stroke();
-    gctx.beginPath(); gctx.arc(c, c, gap, 0, 2 * Math.PI);
-    gctx.strokeStyle = '#ff8a5c'; gctx.lineWidth = 2 * dpr; gctx.stroke();
-    gctx.shadowBlur = 0;
+    crosshairs(gctx, c, r, 6 * dpr, 1.25 * dpr, 2 * dpr);
 
-    $('pickName').textContent = pickName ? `${pickName} · ${fmtLoc(view)}` : fmtLoc(view);
+    const pick = pickName ? `${pickName} · ${fmtLoc(view)}` : fmtLoc(view);
+    $('pickName').textContent = pick; $('pickName').title = pick;
   }
   function queueRender() {
     if (renderQueued) return;
@@ -864,6 +1130,7 @@
 
   if (loc) { $('locLabel').textContent = locText(loc); $('locLabel').title = fmtLoc(loc); locate(true); }
   else { openOverlay(); locate(false); }
+  loadLand();
   requestAnimationFrame(frame);
 
   // ---------- Installable / offline ----------

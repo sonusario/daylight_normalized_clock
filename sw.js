@@ -1,6 +1,6 @@
 // Daylight Clock service worker: caches the app so it opens and runs offline.
 // Bump VERSION whenever any file below changes so installed copies update.
-const VERSION = 'daylight-v1';
+const VERSION = 'daylight-v2';
 const FILES = [
   './',
   'index.html',
@@ -11,7 +11,8 @@ const FILES = [
   'icons/maskable-512.png',
   'icons/apple-touch-icon.png',
   'data/land-110m.json',
-  'data/cities.json'
+  'data/cities.json',
+  'lib/tz-lookup.js'
 ];
 
 self.addEventListener('install', e => {
