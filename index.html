@@ -84,6 +84,19 @@
   .hands.hollow path.h { stroke: color-mix(in srgb, currentColor 75%, #000); fill: color-mix(in srgb, currentColor 75%, #000); }
   .hands.hollow path.s { stroke: color-mix(in srgb, currentColor 55%, #fff); fill: color-mix(in srgb, currentColor 55%, #fff); }
   .no-sec path.s { display: none; }
+  .no-ms path.ms { display: none; }
+  .hands.filled path.ms { fill: color-mix(in srgb, currentColor 40%, #fff); stroke-width: 0.3; }
+  .hands.hollow path.ms { stroke-width: 0.5; stroke-dasharray: 1.4 1; stroke: color-mix(in srgb, currentColor 40%, #fff); fill: none; }
+  svg.dial.ruling { touch-action: none; cursor: crosshair; }
+  #ruler line { stroke: var(--text); stroke-width: 0.9; stroke-dasharray: 2 1.5; stroke-linecap: round; }
+  #ruler circle { fill: var(--text); fill-opacity: 0.9; stroke: rgba(0,0,0,0.45); stroke-width: 0.6; cursor: grab; }
+  .ruler-info { font-size: 0.8rem; text-align: center; min-height: 1.2em; font-variant-numeric: tabular-nums; line-height: 1.4; }
+  .ruler-info:empty { display: none; }
+  .loc { cursor: pointer; }
+  .loc:hover { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+  .dens { flex-direction: row; flex: none; color: var(--text); display: flex; align-items: center; gap: 10px; font-size: 0.82rem; }
+  .dens input { flex: 1; padding: 0; accent-color: var(--accent); background: none; border: none; }
+  .dens span { min-width: 4.5em; color: var(--muted); font-size: 0.78rem; text-align: right; }
   .hidden-set { display: none; }
   /* Sunrise and sunset lines belong to a hand set: solid when it is filled, dashed when hollow. */
   .sunlines line { stroke: color-mix(in srgb, currentColor 80%, #fff); stroke-linecap: round; }
@@ -218,7 +231,7 @@
 <main>
   <header>
     <h1>Daylight Clock</h1>
-    <span class="loc" id="locLabel">—</span>
+    <span class="loc" id="locLabel" role="button" tabindex="0" title="Change location">—</span>
     <button class="about-btn" id="aboutBtn" type="button">About</button>
   </header>
 
@@ -245,24 +258,32 @@
       <g id="ticks"></g>
       <!-- Inner ring: hour labels for the hidden hand set, placed where the visible hour hand points at those times. -->
       <g class="inner-ring" id="inner" font-size="6.2" text-anchor="middle" dominant-baseline="central"></g>
-      <text id="lapLabel" x="100" y="128" font-size="7" fill="var(--muted)" text-anchor="middle" dominant-baseline="central"></text>
       <g id="nums" font-size="9" fill="var(--muted)" text-anchor="middle" dominant-baseline="central"></g>
       <!-- Outer minute/second ring, 0 to 60 -->
       <circle cx="100" cy="100" r="97" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.6"/>
       <g id="ring"></g>
       <g id="ringNums" font-size="6.6" fill="var(--muted)" text-anchor="middle" dominant-baseline="central"></g>
+      <!-- Millisecond ring, 0 to 1000, outside the 60 ring -->
+      <g id="msRing">
+        <circle cx="100" cy="100" r="112.5" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="0.5"/>
+        <g id="msTicks"></g>
+        <g id="msNums" font-size="5.2" fill="var(--muted)" text-anchor="middle" dominant-baseline="central"></g>
+      </g>
       <g id="notches"></g>
       <g class="hands" id="setNorm" style="color: var(--norm)">
-        <path class="h" id="nH"/><path class="m" id="nM"/><path class="s" id="nS"/>
+        <path class="h" id="nH"/><path class="m" id="nM"/><path class="s" id="nS"/><path class="ms" id="nMs"/>
       </g>
       <g class="hands" id="setReal" style="color: var(--real)">
-        <path class="h" id="rH"/><path class="m" id="rM"/><path class="s" id="rS"/>
+        <path class="h" id="rH"/><path class="m" id="rM"/><path class="s" id="rS"/><path class="ms" id="rMs"/>
       </g>
+      <!-- Ruler: a hand to drag; the line under the dial says what is there. -->
+      <g id="ruler" style="display:none"><line x1="100" y1="100" x2="100" y2="5"/><circle cx="100" cy="14" r="4"/></g>
       <circle cx="100" cy="100" r="3" fill="var(--text)"/>
     </svg>
     <div class="digital" id="digital">--:--</div>
     <div class="phase" id="phase">Waiting for location…</div>
     <div class="match" id="match"></div>
+    <div class="ruler-info" id="rulerInfo" aria-live="polite"></div>
     <div class="progress"><div id="bar"></div></div>
   </section>
 
@@ -270,32 +291,32 @@
     <div class="banner" id="banner" hidden></div>
 
     <section class="panel grid">
-      <div class="cell"><div class="k">Real time</div><div class="v" id="realTime">—</div><div class="s" id="realDate">—</div></div>
+      <div class="cell"><div class="k" id="otherK">Daylight time</div><div class="v" id="realTime">—</div><div class="s" id="realDate">—</div></div>
       <div class="cell"><div class="k">Day length</div><div class="v" id="dayLen">—</div><div class="s" id="nightLen">—</div></div>
       <div class="cell"><div class="k" id="riseLabel">Sunrise</div><div class="v" id="riseTime">—</div><div class="s" id="riseWhen">—</div></div>
       <div class="cell"><div class="k" id="setLabel">Sunset</div><div class="v" id="setTime">—</div><div class="s" id="setWhen">—</div></div>
       <div class="cell wide"><div class="k">Right now, one clock hour lasts</div><div class="v" id="rate">—</div><div class="s" id="rateNote">—</div></div>
     </section>
 
-    <div class="actions">
-      <button id="locBtn">Change location</button>
-    </div>
     <section class="panel opts">
       <div class="k">Display</div>
       <div class="toggles">
         <button class="tog" type="button" id="togDial" aria-pressed="false"><span>12-hour dial</span></button>
         <button class="tog" type="button" id="tog24" aria-pressed="false"><span>24-hour labels</span></button>
         <button class="tog" type="button" id="togSec" aria-pressed="true"><span>Second hands</span></button>
-        <button class="tog" type="button" id="togLines" aria-pressed="true"><span>Sunrise/set lines</span></button>
-        <button class="tog" type="button" id="togOther" aria-pressed="true" style="grid-column: 1 / -1"><span id="togOtherText">Real-time hands</span></button>
+        <button class="tog" type="button" id="togLines" aria-pressed="true"><span>Sun lines</span></button>
+        <button class="tog" type="button" id="togMs" aria-pressed="false"><span>Milliseconds</span></button>
+        <button class="tog" type="button" id="togRuler" aria-pressed="false"><span>Ruler hand</span></button>
+        <button class="tog" type="button" id="togOther" aria-pressed="true" style="grid-column: 1 / -1"><span id="togOtherText">Daylight hands</span></button>
       </div>
+      <label class="dens">Label density<input type="range" id="densIn" min="1" max="4" step="1" value="2"><span id="densOut"></span></label>
       <label class="k" for="themeSel">Theme</label>
       <div class="theme-row">
         <select id="themeSel" aria-label="Theme"></select>
         <span class="swatch" aria-hidden="true"><i id="swNorm"></i><i id="swReal"></i></span>
       </div>
     </section>
-    <p class="note">Sunrise is always 6:00 AM and sunset 6:00 PM; the hours between stretch or shrink to fit. Real times are in the selected location's time zone.</p>
+    <p class="note">Sunrise is always 6:00 AM and sunset 6:00 PM; the hours between stretch or shrink to fit. Real times are in the selected location's time zone. Tap the mini globe or the place name to change location.</p>
   </div>
   </div>
 </main>
@@ -341,9 +362,10 @@
     <h3>Changelog</h3>
     <div class="update-row">
       <button id="updateBtn" type="button">Check for update</button>
-      <span id="updateMsg">Version 3</span>
+      <span id="updateMsg">Version 4</span>
     </div>
     <ul class="log">
+      <li><b>4</b><span>2026-11-02: Real time is the main hand set by default (hour and minute hands, 24-hour dial, AM/PM labels); the digital clock and time tile follow the filled hands; the 12-hour dial shows the hand's next pass; millisecond hands and ring; draggable ruler hand; label density slider; tap the place name or mini globe to change location.</span></li>
       <li><b>3</b><span>2026-11-02: 12- or 24-hour dial, sunrise and sunset lines for both clocks, day/night fill follows the filled hands, inner hour ring when the other hands are hidden, nearest-city button, tap the mini globe to move, theme menu.</span></li>
       <li><b>2</b><span>2026-11-02: Time zone follows the location; hour, minute and second hands for daylight and real time, a 60 ring, match markers, themes, and a mini globe.</span></li>
       <li><b>1</b><span>2026-11-02: Installable app that works offline; crosshair globe with nearest big city; clearer place search.</span></li>
@@ -495,8 +517,12 @@
   // dial12: the hour hands go round twice a day. showSec, showLines and
   // showOther hide the second hands, the sunrise/sunset lines, and the
   // hand set that isn't filled.
-  let loc = null, use24 = false, filled = 'norm', theme = 0;
-  let dial12 = false, showSec = true, showLines = true, showOther = true;
+  // Defaults favor real time: its hands are filled, hour and minute hands
+  // only, on a 24-hour dial with AM/PM labels.
+  let loc = null, use24 = false, filled = 'real', theme = 0;
+  let dial12 = false, showSec = false, showLines = true, showOther = true;
+  let showMs = false, showRuler = false, rulerDeg = 135, density = 2;
+  const PREFS = 4; // bump to reset display settings to new defaults once
   try {
     const s = JSON.parse(localStorage.getItem('daylightClock') || '{}');
     if (typeof s.lat === 'number' && typeof s.lon === 'number') loc = {
@@ -504,14 +530,17 @@
       // Where it came from: 'gps' follows the device; a picked place stays put.
       src: s.src === 'pick' ? 'pick' : 'gps'
     };
-    use24 = !!s.use24;
-    if (s.filled === 'real') filled = 'real';
     if (Number.isInteger(s.theme) && THEMES[s.theme]) theme = s.theme;
-    dial12 = s.dial12 === true;
-    showSec = s.showSec !== false; showLines = s.showLines !== false; showOther = s.showOther !== false;
+    if (s.prefs === PREFS) {
+      use24 = s.use24 === true; filled = s.filled === 'norm' ? 'norm' : 'real';
+      dial12 = s.dial12 === true; showSec = s.showSec === true; showLines = s.showLines !== false;
+      showOther = s.showOther !== false; showMs = s.showMs === true; showRuler = s.showRuler === true;
+      if (typeof s.rulerDeg === 'number' && isFinite(s.rulerDeg)) rulerDeg = s.rulerDeg;
+      if ([1, 2, 3, 4].includes(s.density)) density = s.density;
+    }
   } catch (e) {}
   function save() {
-    try { localStorage.setItem('daylightClock', JSON.stringify({ ...(loc || {}), use24, filled, theme, dial12, showSec, showLines, showOther })); } catch (e) {}
+    try { localStorage.setItem('daylightClock', JSON.stringify({ ...(loc || {}), prefs: PREFS, use24, filled, theme, dial12, showSec, showLines, showOther, showMs, showRuler, rulerDeg, density })); } catch (e) {}
   }
   setZone(loc ? zoneFor(loc.lat, loc.lon) : (Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'));
 
@@ -523,8 +552,13 @@
   // 12-hour dial: 12 at the top, and the hand goes round twice a day.
   const hourDeg = h => dial12 ? (((h % 12) + 12) % 12) * 30 : (h - 12) * 15;
   const degPerHour = () => dial12 ? 30 : 15;
-  // The 12-hour lap (0 = AM, 12 = PM) the filled hour hand is on.
-  let lap = 0;
+  // The filled set's hour right now (0-24). On the 12-hour dial the face
+  // shows the coming 12 hours: each spot holds what happens the next time
+  // the hour hand gets there.
+  let vNow = 0, vHour = -1;
+  // Label density 1-4: hours between hour labels, and 60-ring / ms-ring steps.
+  const DENS = { 1: [6, 15, 500], 2: [3, 5, 100], 3: [2, 5, 100], 4: [1, 5, 50] };
+  const DENS_NAME = { 1: 'Sparse', 2: 'Normal', 3: 'Dense', 4: 'Every hour' };
   function drawTicks() {
     ticks.innerHTML = '';
     const n = dial12 ? 12 : 24;
@@ -535,34 +569,46 @@
         `<line x1="${f2(x1)}" y1="${f2(y1)}" x2="${f2(x2)}" y2="${f2(y2)}" stroke="rgba(255,255,255,${major ? 0.7 : 0.35})" stroke-width="${major ? 1.4 : 0.8}"/>`);
     }
   }
-  // Outer ring: 60 minute/second ticks, labelled every 5.
+  // Outer ring: 60 minute/second ticks. Millisecond ring: 0-1000 outside it.
   for (let i = 0; i < 60; i++) {
     const major = i % 5 === 0, [x1, y1] = pt(i * 6, 97), [x2, y2] = pt(i * 6, major ? 101.5 : 99.5);
     $('ring').insertAdjacentHTML('beforeend',
-      `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="rgba(255,255,255,${major ? 0.6 : 0.3})" stroke-width="${major ? 0.9 : 0.5}"/>`);
-    if (major) {
-      const [x, y] = pt(i * 6, 107.5);
-      $('ringNums').insertAdjacentHTML('beforeend', `<text x="${x}" y="${y}">${i}</text>`);
-    }
+      `<line x1="${f2(x1)}" y1="${f2(y1)}" x2="${f2(x2)}" y2="${f2(y2)}" stroke="rgba(255,255,255,${major ? 0.6 : 0.3})" stroke-width="${major ? 0.9 : 0.5}"/>`);
+  }
+  for (let i = 0; i < 100; i++) {
+    const major = i % 10 === 0, [x1, y1] = pt(i * 3.6, 112.5), [x2, y2] = pt(i * 3.6, major ? 116 : 114);
+    $('msTicks').insertAdjacentHTML('beforeend',
+      `<line x1="${f2(x1)}" y1="${f2(y1)}" x2="${f2(x2)}" y2="${f2(y2)}" stroke="rgba(255,255,255,${major ? 0.55 : 0.25})" stroke-width="${major ? 0.7 : 0.4}"/>`);
+  }
+  function drawRings() {
+    const [, mStep, msStep] = DENS[density];
+    let a = '', b = '';
+    for (let i = 0; i < 60; i += mStep) { const [x, y] = pt(i * 6, 107.5); a += `<text x="${f2(x)}" y="${f2(y)}">${i}</text>`; }
+    for (let i = 0; i < 1000; i += msStep) { const [x, y] = pt(i * 0.36, 121); b += `<text x="${f2(x)}" y="${f2(y)}">${i}</text>`; }
+    $('ringNums').innerHTML = a; $('msNums').innerHTML = b;
   }
   const hourLabel = h => use24 ? String(h) : `${h % 12 || 12}${h < 12 ? 'a' : 'p'}`;
-  // Outer labels. On the 12-hour dial they show the lap the filled hand is
-  // on, so 3 reads "3a" in the morning and "3p" in the afternoon.
+  // Outer labels. On the 12-hour dial each spot is labelled with the hour
+  // the hand will next reach there, so ahead of the hand 3 may read "3p"
+  // and just behind it "9a" becomes "9p" once passed.
   function drawNumbers() {
     nums.innerHTML = '';
-    const list = dial12 ? Array.from({ length: 12 }, (_, i) => lap + i) : [0, 3, 6, 9, 12, 15, 18, 21];
+    const step = DENS[density][0], list = [];
+    if (dial12) for (let i = 0; i < 12; i += step) list.push(((i - vNow) % 24 + 24) % 24 < 12 ? i : i + 12);
+    else for (let h = 0; h < 24; h += step) list.push(h);
+    nums.setAttribute('font-size', !dial12 && step === 1 ? 7 : 9);
     for (const h of list) {
       const [x, y] = pt(hourDeg(h), 75);
-      const label = dial12 && !use24 ? String(h % 12 || 12) : hourLabel(h);
+      const label = hourLabel(h);
       // Daylight time's sunrise and sunset hours stand out, in its hand color.
       const special = filled === 'norm' && (h === 6 || h === 18);
       nums.insertAdjacentHTML('beforeend',
         `<text x="${f2(x)}" y="${f2(y)}"${special ? ' fill="var(--norm)" font-weight="600"' : ''}>${label}</text>`);
     }
-    $('lapLabel').textContent = dial12 ? (use24 ? (lap ? '12–23' : '0–11') : (lap ? 'PM' : 'AM')) : '';
   }
   drawTicks();
   drawNumbers();
+  drawRings();
 
   // A hand pointing straight up from (0,0): a shaft that ends in a chevron.
   // len: tip distance, w: shaft width, c: half-span of the chevron,
@@ -575,9 +621,10 @@
   const HANDS = {
     h: handPath(60, 5, 8.5, 8.5, 4.2),
     m: handPath(86, 3.2, 6.5, 7, 3.4),
-    s: handPath(98, 1.6, 4.6, 5.2, 2.3)
+    s: handPath(98, 1.6, 4.6, 5.2, 2.3),
+    ms: handPath(113, 0.9, 3.2, 3.8, 1.6)
   };
-  for (const set of ['n', 'r']) for (const k of ['H', 'M', 'S']) $(set + k).setAttribute('d', HANDS[k.toLowerCase()]);
+  for (const set of ['n', 'r']) for (const k of ['H', 'M', 'S', 'Ms']) $(set + k).setAttribute('d', HANDS[k.toLowerCase()]);
   const turn = (id, deg) => $(id).setAttribute('transform', `translate(100 100) rotate(${deg.toFixed(3)})`);
 
   // Legend swatches: the same chevron lying on its side.
@@ -588,7 +635,7 @@
     p.setAttribute('transform', 'translate(1 6) rotate(90)');
   }
   function applyHands() {
-    const nf = filled === 'norm', sec = showSec ? '' : ' no-sec';
+    const nf = filled === 'norm', sec = (showSec ? '' : ' no-sec') + (showMs ? '' : ' no-ms');
     $('setNorm').setAttribute('class', 'hands ' + (nf ? 'filled' : 'hollow') + sec + (!nf && !showOther ? ' hidden-set' : ''));
     $('setReal').setAttribute('class', 'hands ' + (nf ? 'hollow' : 'filled') + sec + (nf && !showOther ? ' hidden-set' : ''));
     // Sunrise/sunset lines take the same style as their hand set.
@@ -600,6 +647,13 @@
     const svg = $('setNorm').parentNode, hub = svg.lastElementChild;
     svg.insertBefore($(nf ? 'setNorm' : 'setReal'), hub);
     svg.insertBefore($(nf ? 'setReal' : 'setNorm'), hub);
+    svg.insertBefore($('ruler'), hub);
+    // The millisecond ring only shows with its hands; the dial grows to fit it.
+    $('msRing').style.display = showMs ? '' : 'none';
+    svg.setAttribute('viewBox', showMs ? '-29 -29 258 258' : '-18 -18 236 236');
+    $('ruler').style.display = showRuler ? '' : 'none';
+    svg.classList.toggle('ruling', showRuler);
+    $('otherK').textContent = nf ? 'Real time' : 'Daylight time';
     $('legA').setAttribute('class', 'hands filled'); $('legB').setAttribute('class', 'hands hollow');
     $('legA').style.color = nf ? 'var(--norm)' : 'var(--real)';
     $('legB').style.color = nf ? 'var(--real)' : 'var(--norm)';
@@ -607,9 +661,10 @@
     $('legBText').textContent = (nf ? 'Real time' : 'Daylight time') + (showOther ? '' : ' · inner ring');
     $('legB').parentNode.style.opacity = showOther ? '' : '0.75';
     $('togOtherText').textContent = nf ? 'Real-time hands' : 'Daylight hands';
-    for (const [id, on] of [['togDial', dial12], ['tog24', use24], ['togSec', showSec], ['togLines', showLines], ['togOther', showOther]])
+    for (const [id, on] of [['togDial', dial12], ['tog24', use24], ['togSec', showSec], ['togLines', showLines], ['togOther', showOther], ['togMs', showMs], ['togRuler', showRuler]])
       $(id).setAttribute('aria-pressed', String(on));
-    deco = null; drawNumbers();
+    $('densIn').value = density; $('densOut').textContent = DENS_NAME[density];
+    deco = null; inner = null; drawNumbers(); drawRings(); placeRuler();
   }
   $('legend').onclick = () => { filled = filled === 'norm' ? 'real' : 'norm'; save(); applyHands(); };
   const toggle = (id, fn) => { $(id).onclick = () => { fn(); save(); applyHands(); }; };
@@ -618,6 +673,9 @@
   toggle('togSec', () => { showSec = !showSec; });
   toggle('togLines', () => { showLines = !showLines; });
   toggle('togOther', () => { showOther = !showOther; });
+  toggle('togMs', () => { showMs = !showMs; });
+  toggle('togRuler', () => { showRuler = !showRuler; });
+  $('densIn').oninput = () => { density = +$('densIn').value; save(); applyHands(); };
 
   // ---------- Themes ----------
   function applyTheme(i) {
@@ -730,9 +788,10 @@
     }
     return out;
   }
-  let deco = null;
+  let deco = null, inner = null;
+  const decoKey = () => cache.at + (dial12 ? ':' + Math.floor(vNow * 60) : '');
   function drawDeco(now, r) {
-    deco = { at: cache.at, lap };
+    deco = { key: decoKey() };
     const isDay = r.phase === 'day';
     const rise = isDay ? r.start : r.end, set = isDay ? r.end : r.start;
     // Real sunrise hour and day length, in the location's zone.
@@ -740,7 +799,9 @@
     realLen = Math.max(0, Math.min(24, realLen / 3600000));
     const realRise = realHourAt(isDay ? r.start : r.end);
     const day = filled === 'norm' ? { start: 6, len: 12 } : { start: realRise, len: realLen };
-    const from = dial12 ? lap : 0, to = from + (dial12 ? 12 : 24);
+    // 12-hour dial: the face holds the coming 12 hours, starting at the hand,
+    // so the hand drags the lighting of its next pass along behind it.
+    const from = dial12 ? vNow : 0, to = from + (dial12 ? 12 : 24);
     const dayParts = clip(day.start, day.len, from, to);
     const nightParts = clip(day.start + day.len, 24 - day.len, from, to);
     $('dayFill').setAttribute('d', dayParts.map(p => wedge(...p)).join(''));
@@ -758,15 +819,15 @@
     $('linesNorm').innerHTML = line(6, 'Daylight sunrise, 6:00 AM') + line(18, 'Daylight sunset, 6:00 PM');
     $('linesReal').innerHTML = r.today.polar ? '' :
       line(realRise, `Sunrise, ${fmtReal(rise)}`) + line(realHourAt(set), `Sunset, ${fmtReal(set)}`);
-
-    drawInner(now);
   }
 
   // With the hollow set hidden, an inner ring of its hours sits where the
   // filled hour hand will point at those moments, so one hand reads both
   // clocks (like a speedometer's mph and km/h). Labels cover the 12 hours
-  // either side of now (24-hour dial) or the current lap (12-hour dial).
+  // either side of now (24-hour dial) or the coming 12 hours (12-hour dial).
+  const innerKey = now => Math.floor(now / 600000) + (dial12 ? ':' + vHour : '');
   function drawInner(now) {
+    inner = { key: innerKey(now) };
     const g = $('inner');
     g.innerHTML = '';
     if (showOther || !loc) return;
@@ -787,9 +848,9 @@
     const here = S[N];
     if (!here) return;
     // The window of visible hours to label.
-    const vLo = dial12 ? here.v - ((here.v % 24 + 24) % 24) + lap : here.v - 12;
+    const vLo = dial12 ? here.v : here.v - 12;
     const vHi = vLo + (dial12 ? 12 : 24);
-    const every = dial12 ? 1 : 3, out = [];
+    const every = DENS[density][0], out = [];
     for (let i = 1; i < S.length; i++) {
       const a = S[i - 1], b = S[i];
       if (!a || !b || b.w - a.w > 6) continue;
@@ -809,6 +870,78 @@
       }).join('');
   }
 
+  // ---------- Ruler hand ----------
+  // Drag it anywhere on the face. The line under the dial says what the
+  // spot means: when the filled hour hand next gets there, the other clock's
+  // time then, and whether the sun is up.
+  const normAt = t => { const r = compute(t, loc.lat, loc.lon); return r ? normHourOf(r, t) : null; };
+  const fmtHour = h => {
+    const H = Math.floor(h) % 24, M = Math.floor((h - Math.floor(h)) * 60);
+    return use24 ? `${pad(H)}:${pad(M)}` : `${H % 12 || 12}:${pad(M)} ${H < 12 ? 'AM' : 'PM'}`;
+  };
+  // The moment the filled clock will have moved on by dh hours.
+  function whenVisibleAdvances(now, dh) {
+    if (filled === 'real') return now + dh * 3600000;
+    const STEP = 600000;
+    let t = now, acc = 0, prev = normAt(now);
+    if (prev === null) return null;
+    for (let i = 0; i < 400; i++) {
+      const w = normAt(t + STEP);
+      if (w === null) return null;
+      const d = ((w - prev) % 24 + 24) % 24;
+      if (acc + d >= dh) {
+        let a = t, b = t + STEP;
+        for (let k = 0; k < 20; k++) {
+          const m = (a + b) / 2, dm = ((normAt(m) - prev) % 24 + 24) % 24;
+          if (acc + dm >= dh) b = m; else a = m;
+        }
+        return b;
+      }
+      acc += d; prev = w; t += STEP;
+    }
+    return null;
+  }
+  let rulerShownAt = 0;
+  function placeRuler() {
+    $('ruler').setAttribute('transform', `rotate(${f2(rulerDeg)} 100 100)`);
+    rulerShownAt = 0;
+  }
+  function rulerInfo(now) {
+    rulerShownAt = now;
+    if (!showRuler || !loc) { $('rulerInfo').textContent = ''; return; }
+    const pos = dial12 ? (((rulerDeg % 360) + 360) % 360) / 30 : ((((rulerDeg % 360) + 360) % 360) / 15 + 12) % 24;
+    const per = dial12 ? 12 : 24, dh = ((pos - vNow) % per + per) % per;
+    const t = whenVisibleAdvances(now, dh);
+    if (t === null) { $('rulerInfo').textContent = ''; return; }
+    const r = compute(t, loc.lat, loc.lon), nh = r ? normHourOf(r, t) : null;
+    const real = `${fmtReal(t)} real`, day = nh === null ? '' : `${fmtHour(nh)} daylight`;
+    const parts = filled === 'real' ? [real, day] : [day, real];
+    const when = t - now < 60000 ? 'now' : `in ${fmtDur(t - now)}`;
+    // Within a couple of minutes of a sun event, name it.
+    const edge = r && Math.min(Math.abs(t - r.start), Math.abs(t - r.end)) < 120000;
+    const sun = !r ? '' : edge ? (Math.abs(t - r.start) < 120000) === (r.phase === 'day') ? '☀ sunrise' : '☾ sunset'
+      : r.phase === 'day' ? '☀ sun up' : '☾ sun down';
+    $('rulerInfo').textContent = `Ruler · ${parts.filter(Boolean).join(' = ')} · ${when} · ${sun}`;
+  }
+  (() => {
+    const svg = $('setNorm').parentNode;
+    let dragging = false;
+    const aim = e => {
+      const m = svg.getScreenCTM();
+      if (!m) return;
+      const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+      rulerDeg = Math.atan2(p.x - 100, 100 - p.y) / RAD;
+      placeRuler(); rulerInfo(Date.now());
+    };
+    svg.addEventListener('pointerdown', e => {
+      if (!showRuler) return;
+      dragging = true; svg.setPointerCapture(e.pointerId); aim(e); e.preventDefault();
+    });
+    svg.addEventListener('pointermove', e => { if (dragging) aim(e); });
+    const stop = () => { if (dragging) { dragging = false; save(); } };
+    svg.addEventListener('pointerup', stop);
+    svg.addEventListener('pointercancel', stop);
+  })();
   applyHands();
 
   // ---------- Render loop ----------
@@ -828,20 +961,31 @@
     const dh = normHourOf(r, now);
 
     const H = Math.floor(dh), mFloat = (dh - H) * 60, M = Math.floor(mFloat), sFloat = (mFloat - M) * 60, S = Math.floor(sFloat);
-    $('digital').innerHTML = use24
-      ? `${pad(H)}:${pad(M)}<span class="sec">:${pad(S)}</span>`
-      : `${H % 12 || 12}:${pad(M)}<span class="sec">:${pad(S)}</span><span class="ampm">${H < 12 ? 'AM' : 'PM'}</span>`;
-
-    // Hands: the hour hand reads the 24-hour face; minute and second hands read the 0-60 ring.
-    turn('nH', hourDeg(dh)); turn('nM', mFloat * 6); turn('nS', sFloat * 6);
     const off = zoneOffset(now), wall = ((now + off) % DAY + DAY) % DAY, rh = wall / 3600000;
+    // Hands: the hour hand reads the hour face; minute and second hands read
+    // the 0-60 ring, millisecond hands the 0-1000 ring.
+    turn('nH', hourDeg(dh)); turn('nM', mFloat * 6); turn('nS', sFloat * 6);
     turn('rH', hourDeg(rh)); turn('rM', (wall % 3600000) / 60000 * 6); turn('rS', (wall % 60000) / 1000 * 6);
+    if (showMs) { turn('nMs', (sFloat - S) * 360); turn('rMs', (wall % 1000) * 0.36); }
 
-    // Fill, sunrise/sunset lines and inner ring: when the sun times, the
-    // settings, or the 12-hour lap change.
-    const newLap = (filled === 'norm' ? dh : rh) < 12 ? 0 : 12;
-    if (newLap !== lap) { lap = newLap; if (dial12) drawNumbers(); }
-    if (!deco || deco.at !== cache.at || deco.lap !== lap) drawDeco(now, r);
+    // The big digital clock shows the filled set's time; the tile beside
+    // it shows the other one.
+    const clockText = (h, sec) => {
+      const Hh = Math.floor(h), m = Math.floor((h - Hh) * 60), ss = Math.floor(((h - Hh) * 60 - m) * 60);
+      return { Hh, m, ss, text: use24 ? `${pad(Hh)}:${pad(m)}${sec ? ':' + pad(ss) : ''}` : `${Hh % 12 || 12}:${pad(m)}${sec ? ':' + pad(ss) : ''} ${Hh < 12 ? 'AM' : 'PM'}` };
+    };
+    const vh = filled === 'norm' ? { Hh: H, m: M, ss: S } : clockText(rh);
+    $('digital').innerHTML = use24
+      ? `${pad(vh.Hh)}:${pad(vh.m)}<span class="sec">:${pad(vh.ss)}</span>`
+      : `${vh.Hh % 12 || 12}:${pad(vh.m)}<span class="sec">:${pad(vh.ss)}</span><span class="ampm">${vh.Hh < 12 ? 'AM' : 'PM'}</span>`;
+
+    // Fill, sunrise/sunset lines and inner ring.
+    vNow = filled === 'norm' ? dh : rh;
+    if (Math.floor(vNow) !== vHour) { vHour = Math.floor(vNow); if (dial12) drawNumbers(); }
+    if (!deco || deco.key !== decoKey()) drawDeco(now, r);
+    if (!inner || inner.key !== innerKey(now)) drawInner(now);
+    if (now - rulerShownAt > 5000) rulerInfo(now);
+
 
     // Sky
     const [top, bot] = sky(dh);
@@ -859,8 +1003,13 @@
       : '▲ The clocks don\'t agree at any point in the next day';
 
     // Cells
-    $('realTime').textContent = fmtRealSec(now);
-    $('realDate').textContent = `${fmtDate(now)} · ${zoneAbbr(now)}`;
+    if (filled === 'norm') {
+      $('realTime').textContent = fmtRealSec(now);
+      $('realDate').textContent = `${fmtDate(now)} · ${zoneAbbr(now)}`;
+    } else {
+      $('realTime').textContent = clockText(dh, true).text;
+      $('realDate').textContent = `${fmtDate(now)} · by the sun`;
+    }
     const rise = isDay ? r.start : r.end, set = isDay ? r.end : r.start;
     $('riseLabel').textContent = `Sunrise · ${clockLabel(6)}`;
     $('setLabel').textContent = `Sunset · ${clockLabel(18)}`;
@@ -1326,7 +1475,8 @@
   // The mini globe is a shortcut to the location picker.
   $('mini').onclick = () => openOverlay();
   $('mini').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openOverlay(); } };
-  $('locBtn').onclick = () => openOverlay();
+  $('locLabel').onclick = () => openOverlay();
+  $('locLabel').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openOverlay(); } };
   $('aboutBtn').onclick = () => $('aboutOverlay').classList.add('show');
   $('aboutClose').onclick = () => $('aboutOverlay').classList.remove('show');
   $('aboutOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('show'); });
@@ -1342,7 +1492,7 @@
   // ---------- Updates ----------
   // Fetches the latest service worker; a new one installs, takes over and
   // the page reloads into the new version.
-  const APP_VERSION = 3;
+  const APP_VERSION = 4;
   $('updateBtn').onclick = async () => {
     const msg = $('updateMsg');
     const reg = 'serviceWorker' in navigator && window.isSecureContext && await navigator.serviceWorker.getRegistration().catch(() => null);
