@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#141a3a">
+<title>Daylight Clock</title>
+<meta name="description" content="A clock where sunrise is always 6:00 AM and sunset is always 6:00 PM.">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Daylight">
+<style>
+  :root {
+    --sky-top: #141a3a;
+    --sky-bot: #2b2f5a;
+    --panel: rgba(8, 10, 28, 0.42);
+    --panel-border: rgba(255, 255, 255, 0.12);
+    --text: #f4f1ea;
+    --muted: rgba(244, 241, 234, 0.68);
+    --sun: #ffc94a;
+    --moon: #dfe6ff;
+    --accent: #ff8a5c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  html { background: var(--sky-bot); }
+  body {
+    min-height: 100vh;
+    background: linear-gradient(180deg, var(--sky-top), var(--sky-bot));
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; justify-content: center;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  }
+  main { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 14px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; }
+  h1 { font-size: 1.05rem; font-weight: 600; letter-spacing: 0.04em; margin: 0; text-transform: uppercase; }
+  .loc { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--panel-border);
+    border-radius: 20px; padding: 16px;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .clock-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  svg.dial { width: 100%; max-width: 320px; height: auto; display: block; }
+  .digital {
+    font-size: clamp(2.6rem, 13vw, 3.6rem); font-weight: 300;
+    font-variant-numeric: tabular-nums; letter-spacing: 0.02em; line-height: 1;
+  }
+  .digital .ampm { font-size: 0.4em; font-weight: 500; margin-left: 0.25em; color: var(--muted); }
+  .digital .sec { font-size: 0.45em; color: var(--muted); }
+  .phase { font-size: 0.9rem; color: var(--muted); text-align: center; }
+  .progress { width: 100%; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; margin-top: 6px; }
+  .progress > div { height: 100%; width: 0; border-radius: 3px; background: var(--sun); }
+  .banner {
+    font-size: 0.85rem; line-height: 1.4; padding: 12px 14px; border-radius: 14px;
+    background: rgba(255, 138, 92, 0.18); border: 1px solid rgba(255, 138, 92, 0.4);
+  }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cell { padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,0.06); }
+  .cell .k { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .cell .v { font-size: 1.1rem; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .cell .s { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+  .actions { display: flex; gap: 10px; }
+  button {
+    flex: 1; font: inherit; font-size: 0.9rem; color: var(--text); cursor: pointer;
+    background: rgba(255,255,255,0.1); border: 1px solid var(--panel-border);
+    border-radius: 12px; padding: 11px 12px;
+  }
+  button:hover { background: rgba(255,255,255,0.16); }
+  button.primary { background: var(--accent); border-color: transparent; color: #1d1020; font-weight: 600; }
+  .note { font-size: 0.75rem; color: var(--muted); text-align: center; line-height: 1.4; }
+
+  /* Location overlay */
+  .overlay {
+    position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(5, 6, 18, 0.72); padding: 16px; z-index: 10;
+  }
+  .overlay.show { display: flex; }
+  .sheet { max-height: calc(100vh - 32px); overflow-y: auto; }
+  .sheet { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; background: #1b1f45; }
+  .sheet h2 { margin: 0; font-size: 1.15rem; }
+  .sheet p { margin: 0; font-size: 0.88rem; color: var(--muted); line-height: 1.45; }
+  .row { display: flex; gap: 10px; }
+  label { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; color: var(--muted); }
+  input {
+    font: inherit; font-size: 1rem; color: var(--text); background: rgba(255,255,255,0.08);
+    border: 1px solid var(--panel-border); border-radius: 10px; padding: 10px; width: 100%;
+  }
+  .pair { display: flex; gap: 6px; }
+  .pair input { min-width: 0; }
+  select {
+    font: inherit; font-size: 1rem; color: var(--text); background: rgba(255,255,255,0.08);
+    border: 1px solid var(--panel-border); border-radius: 10px; padding: 0 8px;
+  }
+  select option { color: #111; }
+  .or { text-align: center; font-size: 0.8rem !important; }
+  .search { display: flex; gap: 8px; margin: 0; }
+  .search input { flex: 1; min-width: 0; }
+  .search button { flex: 0 0 auto; }
+  .results { display: flex; flex-direction: column; gap: 6px; }
+  .results:empty { display: none; }
+  .results button { text-align: left; padding: 9px 12px; }
+  .results button small { display: block; color: var(--muted); font-size: 0.75rem; margin-top: 2px; }
+  .results .msg { font-size: 0.82rem; color: var(--muted); padding: 2px 4px; }
+  .fine { font-size: 0.7rem !important; text-align: center; opacity: 0.8; }
+  #globe {
+    width: 240px; height: 240px; max-width: 100%; align-self: center;
+    touch-action: none; cursor: grab; border-radius: 50%;
+  }
+  #globe:active { cursor: grabbing; }
+  #globe:focus-visible { outline: 2px solid var(--sun); outline-offset: 3px; }
+  .readout { text-align: center; display: flex; flex-direction: column; gap: 2px; margin-top: -4px; }
+  .pick { font-size: 0.88rem; min-height: 1.2em; color: var(--sun); font-variant-numeric: tabular-nums; }
+  .city { font-size: 0.8rem; min-height: 1.2em; color: var(--muted); }
+  .city b { color: var(--text); font-weight: 600; }
+  .results .found {
+    font-size: 0.85rem; line-height: 1.4; padding: 10px 12px; border-radius: 12px;
+    background: rgba(255, 201, 74, 0.14); border: 1px solid rgba(255, 201, 74, 0.45);
+  }
+  .results .found b { color: var(--sun); }
+  @keyframes flash { from { border-color: var(--sun); background: rgba(255, 201, 74, 0.28); } }
+  input.flash, select.flash { animation: flash 1.4s ease-out; }
+  .about-btn {
+    flex: none; background: none; border: none; padding: 4px 6px; color: var(--muted);
+    font-size: 0.75rem; text-decoration: underline; text-underline-offset: 2px;
+  }
+  .about-btn:hover { background: none; color: var(--text); }
+  .about { gap: 10px; }
+  .about a { color: var(--sun); }
+  .about ul { margin: 0; padding-left: 18px; font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+  .about h3 { margin: 4px 0 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+  .foot { text-align: center; }
+  .loc { max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .err { color: #ffb4a0; font-size: 0.82rem; min-height: 1em; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Daylight Clock</h1>
+    <span class="loc" id="locLabel">—</span>
+  </header>
+
+  <section class="panel clock-wrap">
+    <svg class="dial" viewBox="0 0 200 200" aria-label="Daylight clock dial">
+      <defs>
+        <clipPath id="upper"><rect x="0" y="0" width="200" height="100"/></clipPath>
+        <clipPath id="lower"><rect x="0" y="100" width="200" height="100"/></clipPath>
+      </defs>
+      <circle cx="100" cy="100" r="92" fill="rgba(140,190,255,0.16)" clip-path="url(#upper)"/>
+      <circle cx="100" cy="100" r="92" fill="rgba(0,0,20,0.35)" clip-path="url(#lower)"/>
+      <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+      <line x1="6" y1="100" x2="194" y2="100" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 3" opacity="0.8"/>
+      <g id="ticks"></g>
+      <g id="nums" font-size="9" fill="var(--muted)" text-anchor="middle" dominant-baseline="central"></g>
+      <circle id="minRing" cx="100" cy="100" r="96" fill="none" stroke="var(--text)" stroke-width="2" stroke-linecap="round" opacity="0.6" pathLength="60" stroke-dasharray="0 60" transform="rotate(-90 100 100)"/>
+      <line id="hourHand" x1="100" y1="100" x2="100" y2="40" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
+      <circle id="body" cx="100" cy="40" r="7" fill="var(--sun)"/>
+      <circle cx="100" cy="100" r="3" fill="var(--text)"/>
+    </svg>
+    <div class="digital" id="digital">--:--</div>
+    <div class="phase" id="phase">Waiting for location…</div>
+    <div class="progress"><div id="bar"></div></div>
+  </section>
+
+  <div class="banner" id="banner" hidden></div>
+
+  <section class="panel grid">
+    <div class="cell"><div class="k">Real time</div><div class="v" id="realTime">—</div><div class="s" id="realDate">—</div></div>
+    <div class="cell"><div class="k" id="nextLabel">Next</div><div class="v" id="nextTime">—</div><div class="s" id="nextIn">—</div></div>
+    <div class="cell"><div class="k" id="prevLabel">Previous</div><div class="v" id="prevTime">—</div><div class="s" id="prevAgo">—</div></div>
+    <div class="cell"><div class="k">Day length</div><div class="v" id="dayLen">—</div><div class="s" id="nightLen">—</div></div>
+    <div class="cell" style="grid-column: 1 / -1"><div class="k">Right now, one clock hour lasts</div><div class="v" id="rate">—</div><div class="s" id="rateNote">—</div></div>
+  </section>
+
+  <div class="actions">
+    <button id="locBtn">Change location</button>
+    <button id="fmtBtn">24-hour</button>
+  </div>
+  <p class="note">Sunrise is always 6:00 AM and sunset 6:00 PM; the hours between stretch or shrink to fit. Real times use this device's time zone.</p>
+  <div class="foot"><button class="about-btn" id="aboutBtn" type="button">About</button></div>
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="panel sheet">
+    <h2>Where are you?</h2>
+    <p>Daylight Clock needs your location to work out when the sun rises and sets. It's used only on this device.</p>
+    <button class="primary" id="geoBtn">Use my location</button>
+    <p class="or">or search for a place</p>
+    <form class="search" id="searchForm">
+      <input id="q" type="search" placeholder="City, state, country" autocomplete="off" enterkeyhint="search">
+      <button type="submit">Search</button>
+    </form>
+    <div class="results" id="results"></div>
+    <p class="or">or turn the globe until the crosshairs sit on your spot</p>
+    <canvas id="globe" width="240" height="240" tabindex="0" aria-label="Globe for picking a location. Drag, or use the arrow keys, to move the crosshairs."></canvas>
+    <div class="readout" aria-live="polite">
+      <div class="pick" id="pickName"></div>
+      <div class="city" id="cityLine"></div>
+    </div>
+    <div class="row">
+      <label>Latitude<span class="pair"><input id="latIn" type="number" step="any" min="0" max="90" inputmode="decimal" placeholder="0"><select id="latHem"><option>N</option><option>S</option></select></span></label>
+      <label>Longitude<span class="pair"><input id="lonIn" type="number" step="any" min="0" max="180" inputmode="decimal" placeholder="0"><select id="lonHem"><option>W</option><option>E</option></select></span></label>
+    </div>
+    <div class="err" id="err"></div>
+    <p class="fine">Place searches go to Open-Meteo and OpenStreetMap. Everything else stays on this device.</p>
+    <div class="row">
+      <button id="cancelBtn">Cancel</button>
+      <button id="manualBtn">Use these</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="aboutOverlay">
+  <div class="panel sheet about" role="dialog" aria-labelledby="aboutTitle">
+    <h2 id="aboutTitle">About Daylight Clock</h2>
+    <p>A clock that stretches the day to fit the sun: sunrise is always 6:00 AM and sunset is always 6:00 PM, wherever you are.</p>
+    <p><a href="https://github.com/sonusario/daylight_normalized_clock" target="_blank" rel="noopener">Source on GitHub</a> · <a href="https://sonusario.github.io/" target="_blank" rel="noopener">More projects</a></p>
+    <h3>Changelog</h3>
+    <ul>
+      <li>2026-11-02: Installable app that works offline; crosshair globe with nearest big city; clearer place search.</li>
+    </ul>
+    <h3>Credits</h3>
+    <ul>
+      <li>Sun positions: NOAA solar calculator equations.</li>
+      <li>Coastlines: Natural Earth, via world-atlas.</li>
+      <li>Cities: GeoNames (CC BY 4.0).</li>
+      <li>Place search: Open-Meteo and OpenStreetMap Nominatim.</li>
+    </ul>
+    <button id="aboutClose" type="button">Close</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const DAY = 86400000, RAD = Math.PI / 180;
+  const $ = id => document.getElementById(id);
+
+  // ---------- Solar math (NOAA algorithm) ----------
+  function solar(ms) {
+    const jd = ms / DAY + 2440587.5;
+    const T = (jd - 2451545) / 36525;
+    const L0 = ((280.46646 + T * (36000.76983 + T * 0.0003032)) % 360 + 360) % 360;
+    const M = 357.52911 + T * (35999.05029 - 0.0001537 * T);
+    const e = 0.016708634 - T * (0.000042037 + 0.0000001267 * T);
+    const Mr = M * RAD;
+    const C = Math.sin(Mr) * (1.914602 - T * (0.004817 + 0.000014 * T))
+            + Math.sin(2 * Mr) * (0.019993 - 0.000101 * T)
+            + Math.sin(3 * Mr) * 0.000289;
+    const omega = (125.04 - 1934.136 * T) * RAD;
+    const lambda = (L0 + C - 0.00569 - 0.00478 * Math.sin(omega)) * RAD;
+    const eps0 = 23 + (26 + (21.448 - T * (46.815 + T * (0.00059 - T * 0.001813))) / 60) / 60;
+    const eps = (eps0 + 0.00256 * Math.cos(omega)) * RAD;
+    const decl = Math.asin(Math.sin(eps) * Math.sin(lambda));
+    const y = Math.tan(eps / 2) ** 2;
+    const L = L0 * RAD;
+    const eq = 4 / RAD * (y * Math.sin(2 * L) - 2 * e * Math.sin(Mr)
+             + 4 * e * y * Math.sin(Mr) * Math.cos(2 * L)
+             - 0.5 * y * y * Math.sin(4 * L) - 1.25 * e * e * Math.sin(2 * Mr));
+    return { decl, eq };
+  }
+
+  // Hour angle (degrees) of sunrise/sunset, clamped. When the sun never
+  // crosses the horizon, the clamp lands on the moment it comes closest:
+  // solar midnight in polar day, solar noon in polar night.
+  function hourAngle(lat, decl) {
+    const cosH = (Math.sin(-0.833 * RAD) - Math.sin(lat * RAD) * Math.sin(decl))
+               / (Math.cos(lat * RAD) * Math.cos(decl));
+    return {
+      H: Math.acos(Math.max(-1, Math.min(1, cosH))) / RAD,
+      polar: cosH > 1 ? 'night' : cosH < -1 ? 'day' : null
+    };
+  }
+
+  function dayEvents(n, lat, lon) {
+    let noon = n * DAY + (720 - 4 * lon) * 60000;
+    for (let i = 0; i < 2; i++) noon = n * DAY + (720 - 4 * lon - solar(noon).eq) * 60000;
+    const a = hourAngle(lat, solar(noon).decl);
+    // Refine each event with the declination at (roughly) that moment.
+    const r = hourAngle(lat, solar(noon - a.H * 240000).decl);
+    const s = hourAngle(lat, solar(noon + a.H * 240000).decl);
+    return { noon, rise: noon - r.H * 240000, set: noon + s.H * 240000, polar: a.polar };
+  }
+
+  function compute(now, lat, lon) {
+    lat = Math.max(-89.999, Math.min(89.999, lat));
+    const n0 = Math.floor((now + lon / 360 * DAY) / DAY);
+    const days = [];
+    for (let k = -2; k <= 2; k++) days.push(dayEvents(n0 + k, lat, lon));
+    // Where a polar day's sunset and the next sunrise meet, make them one instant.
+    for (let i = 0; i < days.length - 1; i++) {
+      if (days[i].set > days[i + 1].rise) {
+        const m = (days[i].set + days[i + 1].rise) / 2;
+        days[i].set = m; days[i + 1].rise = m;
+      }
+    }
+    for (let i = 0; i < days.length; i++) {
+      const d = days[i];
+      if (now >= d.rise && now < d.set) return { phase: 'day', start: d.rise, end: d.set, today: d, prevNight: i > 0 ? [days[i - 1].set, d.rise] : null };
+      if (i < days.length - 1 && now >= d.set && now < days[i + 1].rise)
+        return { phase: 'night', start: d.set, end: days[i + 1].rise, today: d, nextDay: [days[i + 1].rise, days[i + 1].set] };
+    }
+    return null;
+  }
+
+  // ---------- State ----------
+  let loc = null, use24 = false;
+  try {
+    const s = JSON.parse(localStorage.getItem('daylightClock') || '{}');
+    if (typeof s.lat === 'number' && typeof s.lon === 'number') loc = { lat: s.lat, lon: s.lon, name: typeof s.name === 'string' ? s.name : null };
+    use24 = !!s.use24;
+  } catch (e) {}
+  function save() {
+    try { localStorage.setItem('daylightClock', JSON.stringify({ ...(loc || {}), use24 })); } catch (e) {}
+  }
+
+  // ---------- Dial setup ----------
+  const ticks = $('ticks'), nums = $('nums');
+  const pt = (deg, r) => [100 + r * Math.sin(deg * RAD), 100 - r * Math.cos(deg * RAD)];
+  for (let h = 0; h < 24; h++) {
+    const deg = (h - 12) * 15, major = h % 3 === 0;
+    const [x1, y1] = pt(deg, major ? 84 : 87), [x2, y2] = pt(deg, 92);
+    ticks.insertAdjacentHTML('beforeend',
+      `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="rgba(255,255,255,${major ? 0.7 : 0.35})" stroke-width="${major ? 1.4 : 0.8}"/>`);
+  }
+  function drawNumbers() {
+    nums.innerHTML = '';
+    for (let h = 0; h < 24; h += 3) {
+      const [x, y] = pt((h - 12) * 15, 75);
+      const label = use24 ? String(h) : `${h % 12 || 12}${h < 12 ? 'a' : 'p'}`;
+      const special = h === 6 || h === 18;
+      nums.insertAdjacentHTML('beforeend',
+        `<text x="${x}" y="${y}"${special ? ' fill="var(--accent)" font-weight="600"' : ''}>${label}</text>`);
+    }
+  }
+  drawNumbers();
+  $('fmtBtn').textContent = use24 ? '12-hour' : '24-hour';
+
+  // ---------- Sky colors ----------
+  const stops = [
+    [0, '#0b1026', '#1a2040'], [4.5, '#141a3a', '#2b2f5a'], [5.5, '#2d2f6e', '#b9607a'],
+    [6.5, '#3a4b94', '#e8875a'], [8, '#3d78bd', '#86b8e6'], [12, '#2a6fcb', '#7fb8ee'],
+    [16, '#3d78bd', '#86b8e6'], [17.5, '#3e3f86', '#e07a52'], [18.5, '#2a2459', '#a9496a'],
+    [19.5, '#141a3a', '#2b2f5a'], [24, '#0b1026', '#1a2040']
+  ];
+  const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const mix = (a, b, t) => '#' + hex(a).map((v, i) => Math.round(v + (hex(b)[i] - v) * t).toString(16).padStart(2, '0')).join('');
+  function sky(h) {
+    for (let i = 0; i < stops.length - 1; i++) {
+      const [h0, t0, b0] = stops[i], [h1, t1, b1] = stops[i + 1];
+      if (h >= h0 && h <= h1) {
+        const t = (h - h0) / (h1 - h0);
+        return [mix(t0, t1, t), mix(b0, b1, t)];
+      }
+    }
+    return [stops[0][1], stops[0][2]];
+  }
+
+  // ---------- Formatting ----------
+  const fmtReal = ms => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const fmtDate = ms => new Date(ms).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  function fmtDur(ms) {
+    const m = Math.round(Math.abs(ms) / 60000);
+    const h = Math.floor(m / 60), r = m % 60;
+    return h ? `${h}h ${r}m` : `${r}m`;
+  }
+  function fmtRate(msPerHour) {
+    const s = msPerHour / 1000;
+    if (s < 60) return `${s.toFixed(1)} real seconds`;
+    const m = Math.floor(s / 60), r = Math.round(s % 60);
+    if (m < 60) return `${m} min ${r} s`;
+    return `${Math.floor(m / 60)} h ${m % 60} min`;
+  }
+  const fmtLoc = l => `${Math.abs(l.lat).toFixed(3)}°${l.lat >= 0 ? 'N' : 'S'}, ${Math.abs(l.lon).toFixed(3)}°${l.lon >= 0 ? 'E' : 'W'}`;
+
+  // ---------- Render loop ----------
+  let cache = null; // recompute sun events once a second at most
+  function frame() {
+    requestAnimationFrame(frame);
+    if (!loc) return;
+    const now = Date.now();
+    if (!cache || now >= cache.res.end || now < cache.res.start || now - cache.at > 60000) {
+      cache = { at: now, res: compute(now, loc.lat, loc.lon) };
+    }
+    const r = cache.res;
+    if (!r) return;
+    const f = (now - r.start) / (r.end - r.start);
+    const dh = r.phase === 'day' ? 6 + 12 * f : (18 + 12 * f) % 24;
+
+    const H = Math.floor(dh), mFloat = (dh - H) * 60, M = Math.floor(mFloat), S = Math.floor((mFloat - M) * 60);
+    const pad = n => String(n).padStart(2, '0');
+    $('digital').innerHTML = use24
+      ? `${pad(H)}:${pad(M)}<span class="sec">:${pad(S)}</span>`
+      : `${H % 12 || 12}:${pad(M)}<span class="sec">:${pad(S)}</span><span class="ampm">${H < 12 ? 'AM' : 'PM'}</span>`;
+
+    // Hands
+    const [hx, hy] = pt((dh - 12) * 15, 66);
+    $('hourHand').setAttribute('x2', hx); $('hourHand').setAttribute('y2', hy);
+    $('body').setAttribute('cx', hx); $('body').setAttribute('cy', hy);
+    $('body').setAttribute('fill', r.phase === 'day' ? 'var(--sun)' : 'var(--moon)');
+    $('minRing').setAttribute('stroke-dasharray', `${mFloat.toFixed(3)} 60`);
+
+    // Sky
+    const [top, bot] = sky(dh);
+    document.documentElement.style.setProperty('--sky-top', top);
+    document.documentElement.style.setProperty('--sky-bot', bot);
+
+    // Phase + progress
+    const isDay = r.phase === 'day';
+    $('phase').textContent = `${isDay ? 'Daytime' : 'Night'} · ${Math.floor(f * 100)}% of the way to ${isDay ? 'sunset' : 'sunrise'}`;
+    $('bar').style.width = (f * 100).toFixed(2) + '%';
+    $('bar').style.background = isDay ? 'var(--sun)' : 'var(--moon)';
+
+    // Cells
+    $('realTime').textContent = new Date(now).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+    $('realDate').textContent = fmtDate(now);
+    $('nextLabel').textContent = isDay ? 'Sunset (6:00 PM)' : 'Sunrise (6:00 AM)';
+    $('nextTime').textContent = fmtReal(r.end);
+    $('nextIn').textContent = `in ${fmtDur(r.end - now)}`;
+    $('prevLabel').textContent = isDay ? 'Sunrise (6:00 AM)' : 'Sunset (6:00 PM)';
+    $('prevTime').textContent = fmtReal(r.start);
+    $('prevAgo').textContent = `${fmtDur(now - r.start)} ago`;
+
+    const dayLen = isDay ? r.end - r.start : r.nextDay[1] - r.nextDay[0];
+    const nightLen = isDay ? (r.prevNight ? r.prevNight[1] - r.prevNight[0] : DAY - dayLen) : r.end - r.start;
+    $('dayLen').textContent = fmtDur(dayLen);
+    $('nightLen').textContent = `Night: ${fmtDur(nightLen)}`;
+
+    const perHour = (r.end - r.start) / 12;
+    $('rate').textContent = fmtRate(perHour);
+    const ratio = perHour / 3600000;
+    $('rateNote').textContent = Math.abs(ratio - 1) < 0.005 ? 'Same as a normal hour'
+      : ratio > 1 ? `${ratio.toFixed(2)}× longer than a normal hour` : `${(1 / ratio).toFixed(2)}× shorter than a normal hour`;
+
+    // Polar note
+    const banner = $('banner'), polar = r.today.polar;
+    if (polar === 'day') {
+      banner.hidden = false;
+      banner.textContent = "The sun doesn't set here today. 6:00 PM and 6:00 AM mark solar midnight, when it dips closest to the horizon.";
+    } else if (polar === 'night') {
+      banner.hidden = false;
+      banner.textContent = "The sun doesn't rise here today. 6:00 AM and 6:00 PM mark solar noon, when it climbs closest to the horizon.";
+    } else {
+      // Warn when the location is far from the device's time zone (e.g. E/W sign slip).
+      const tzHours = -new Date(now).getTimezoneOffset() / 60;
+      let diff = Math.abs(loc.lon / 15 - tzHours) % 24; diff = Math.min(diff, 24 - diff);
+      if (diff > 3) {
+        banner.hidden = false;
+        banner.textContent = `This location is about ${Math.round(diff)} hours from your device's time zone, so the clock shows that place's daylight time. If that's not intended, check the longitude's E/W.`;
+      } else banner.hidden = true;
+    }
+  }
+
+  // ---------- Location ----------
+  const locText = l => l.name || fmtLoc(l);
+  function setLoc(lat, lon, name) {
+    loc = { lat, lon, name: name || null }; cache = null; save();
+    $('locLabel').textContent = locText(loc);
+    $('locLabel').title = fmtLoc(loc);
+    $('overlay').classList.remove('show');
+  }
+  function openOverlay(msg) {
+    $('err').textContent = msg || '';
+    $('results').innerHTML = '';
+    if (loc) { pickName = loc.name; view = { lat: loc.lat, lon: loc.lon }; writeInputs(loc.lat, loc.lon); }
+    $('cancelBtn').style.display = loc ? '' : 'none';
+    $('overlay').classList.add('show');
+    renderGlobe();
+    loadLand(); loadCities();
+  }
+  function locate(silent) {
+    if (!window.isSecureContext) {
+      openOverlay("Browsers only offer location to pages loaded over https:// (or localhost). This copy was opened as a local file, so enter coordinates instead.");
+      return;
+    }
+    if (!('geolocation' in navigator)) { openOverlay("This browser can't share location — enter coordinates instead."); return; }
+    $('err').textContent = 'Locating…';
+    navigator.geolocation.getCurrentPosition(
+      p => setLoc(p.coords.latitude, p.coords.longitude),
+      e => {
+        if (silent && loc) return;
+        if (e.code === 1) {
+          const msg = 'Location is blocked for this page. The browser remembers that choice and won\'t ask again. Reset it in the site settings (the icon left of the address bar), then reload, or enter coordinates here.';
+          if (navigator.permissions) navigator.permissions.query({ name: 'geolocation' })
+            .then(st => openOverlay(st.state === 'denied' ? msg : 'Location permission was dismissed. Tap "Use my location" to try again.'))
+            .catch(() => openOverlay(msg));
+          else openOverlay(msg);
+        } else openOverlay("Couldn't get your location (" + (e.code === 3 ? 'timed out' : 'position unavailable') + "). Check that location services are on for this browser, or enter coordinates.");
+      },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 }
+    );
+  }
+
+  // ---------- Globe ----------
+  // The point under the crosshairs (the globe's center) is the picked location.
+  const globe = $('globe'), gctx = globe.getContext('2d');
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  globe.width = globe.height = Math.round(240 * dpr);
+  const MW = 1024, MH = 512;
+  let landMask = null, landLoading = false, landTried = false;
+  let view = { lat: 25, lon: -60 }, pickName = null, renderQueued = false;
+  const clampLat = v => Math.max(-90, Math.min(90, v));
+  const wrapLon = v => ((v + 540) % 360 + 360) % 360 - 180;
+
+  function loadLand() {
+    if (landMask || landLoading || landTried) return;
+    landLoading = true;
+    fetch('data/land-110m.json')
+      .then(r => { if (!r.ok) throw 0; return r.json(); })
+      .then(topo => {
+        const [sx, sy] = topo.transform.scale, [tx, ty] = topo.transform.translate;
+        const arcs = topo.arcs.map(a => { let x = 0, y = 0; return a.map(([dx, dy]) => [(x += dx) * sx + tx, (y += dy) * sy + ty]); });
+        const c = document.createElement('canvas'); c.width = MW; c.height = MH;
+        const x = c.getContext('2d');
+        x.fillStyle = '#fff'; x.beginPath();
+        const ring = idxs => {
+          const pts = [];
+          for (const i of idxs) {
+            const a = i >= 0 ? arcs[i] : arcs[~i].slice().reverse();
+            pts.push(...(pts.length ? a.slice(1) : a));
+          }
+          // Unwrap longitudes so a ring crossing the antimeridian stays continuous.
+          const orig = pts.slice();
+          let jumped = false;
+          for (let k = 1; k < pts.length; k++) {
+            let d = pts[k][0] - pts[k - 1][0];
+            if (Math.abs(d) > 180) { jumped = true; pts[k] = [pts[k][0] - 360 * Math.sign(d), pts[k][1]]; }
+          }
+          const span = Math.max(...pts.map(p => p[0])) - Math.min(...pts.map(p => p[0]));
+          // Rings that circle a pole (Antarctica) already draw correctly as-is.
+          const wrap = jumped && span < 359;
+          const draw = wrap ? pts : orig;
+          for (const off of wrap ? [-360, 0, 360] : [0]) {
+            draw.forEach(([lon, lat], k) => {
+              const px = (lon + off + 180) / 360 * MW, py = (90 - lat) / 180 * MH;
+              k ? x.lineTo(px, py) : x.moveTo(px, py);
+            });
+            x.closePath();
+          }
+        };
+        for (const g of topo.objects.land.geometries) {
+          if (g.type === 'Polygon') g.arcs.forEach(ring);
+          else if (g.type === 'MultiPolygon') g.arcs.forEach(p => p.forEach(ring));
+        }
+        x.fill('evenodd');
+        const d = x.getImageData(0, 0, MW, MH).data;
+        landMask = new Uint8Array(MW * MH);
+        for (let i = 0; i < landMask.length; i++) landMask[i] = d[i * 4 + 3] > 127 ? 1 : 0;
+        renderGlobe();
+      })
+      .catch(() => {})
+      .finally(() => { landLoading = false; landTried = true; });
+  }
+
+  // ---------- Big cities (GeoNames: 300k+ people, plus capitals) ----------
+  let cities = null, countries = {}, citiesLoading = false;
+  function loadCities() {
+    if (cities || citiesLoading) return;
+    citiesLoading = true;
+    fetch('data/cities.json')
+      .then(r => { if (!r.ok) throw 0; return r.json(); })
+      .then(j => {
+        countries = j.countries;
+        cities = j.cities.map(([name, cc, lat, lon, pop]) => ({
+          name, cc, lat, lon, pop, sl: Math.sin(lat * RAD), cl: Math.cos(lat * RAD), lr: lon * RAD
+        }));
+        renderGlobe();
+      })
+      .catch(() => {})
+      .finally(() => { citiesLoading = false; });
+  }
+  function nearestCity(lat, lon) {
+    if (!cities) return null;
+    const sl = Math.sin(lat * RAD), cl = Math.cos(lat * RAD), lr = lon * RAD;
+    let best = null, bc = -2;
+    for (const c of cities) {
+      const cosd = sl * c.sl + cl * c.cl * Math.cos(lr - c.lr);
+      if (cosd > bc) { bc = cosd; best = c; }
+    }
+    const km = Math.acos(Math.max(-1, Math.min(1, bc))) * 6371;
+    // Compass direction from the city to the crosshairs.
+    const y = Math.sin(lr - best.lr) * cl, x = best.cl * sl - best.sl * cl * Math.cos(lr - best.lr);
+    const brg = (Math.atan2(y, x) / RAD + 360) % 360;
+    return { city: best, km, dir: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(brg / 45) % 8] };
+  }
+  const useMiles = /^en-(US|LR|MM)$/i.test(navigator.language || '');
+  const fmtDist = km => {
+    const v = useMiles ? km / 1.609344 : km, u = useMiles ? 'mi' : 'km';
+    return `${v < 10 ? v.toFixed(1) : Math.round(v).toLocaleString()} ${u}`;
+  };
+
+  function subsolar(ms) {
+    const s = solar(ms), utcMin = ((ms % DAY) + DAY) % DAY / 60000;
+    let lon = (720 - s.eq - utcMin) / 4;
+    lon = ((lon + 540) % 360) - 180;
+    return { lat: s.decl, lon: lon * RAD };
+  }
+
+  // Screen position of a lat/lon on the globe, or null when it's on the far side.
+  function project(lat, lon, c, r) {
+    const p0 = view.lat * RAD, l0 = view.lon * RAD, p = lat * RAD, dl = lon * RAD - l0;
+    const vis = Math.sin(p0) * Math.sin(p) + Math.cos(p0) * Math.cos(p) * Math.cos(dl);
+    if (vis <= 0) return null;
+    return [c + r * Math.cos(p) * Math.sin(dl), c - r * (Math.cos(p0) * Math.sin(p) - Math.sin(p0) * Math.cos(p) * Math.cos(dl))];
+  }
+
+  function renderGlobe() {
+    const N = globe.width, r = N / 2 - 1, c = N / 2;
+    const img = gctx.createImageData(N, N), px = img.data;
+    const p0 = view.lat * RAD, l0 = view.lon * RAD, sp0 = Math.sin(p0), cp0 = Math.cos(p0);
+    const sun = subsolar(Date.now()), sD = Math.sin(sun.lat), cD = Math.cos(sun.lat);
+    const G = 30 * RAD, T = 0.6 * RAD;
+    for (let j = 0; j < N; j++) {
+      const y = (c - j - 0.5) / r;
+      for (let i = 0; i < N; i++) {
+        const x = (i + 0.5 - c) / r, d = x * x + y * y;
+        if (d > 1) continue;
+        const z = Math.sqrt(1 - d);
+        const sl = Math.max(-1, Math.min(1, z * sp0 + y * cp0));
+        const lat = Math.asin(sl), cl = Math.cos(lat);
+        let lon = l0 + Math.atan2(x, z * cp0 - y * sp0);
+        lon = ((lon + 3 * Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+        let mx = Math.floor((lon + Math.PI) / (2 * Math.PI) * MW); if (mx >= MW) mx = MW - 1;
+        let my = Math.floor((Math.PI / 2 - lat) / Math.PI * MH); if (my >= MH) my = MH - 1;
+        const land = landMask && landMask[my * MW + mx];
+        let R = land ? 104 : 32, Gc = land ? 150 : 70, B = land ? 86 : 128;
+        // graticule every 30°
+        const dLat = Math.abs(((lat + G / 2) % G + G) % G - G / 2);
+        const dLon = Math.abs(((lon + G / 2) % G + G) % G - G / 2) * Math.max(cl, 0.15);
+        if (dLat < T || dLon < T) { R += 30; Gc += 30; B += 30; }
+        // sunlight and limb shading
+        const cosc = sl * sD + cl * cD * Math.cos(lon - sun.lon);
+        const t = Math.max(0, Math.min(1, (cosc + 0.08) / 0.16));
+        const k = (0.45 + 0.55 * t) * (0.72 + 0.28 * z);
+        const o = (j * N + i) * 4;
+        px[o] = R * k; px[o + 1] = Gc * k; px[o + 2] = B * k; px[o + 3] = 255;
+      }
+    }
+    gctx.clearRect(0, 0, N, N);
+    gctx.putImageData(img, 0, 0);
+    gctx.beginPath(); gctx.arc(c, c, r, 0, 2 * Math.PI);
+    gctx.strokeStyle = 'rgba(255,255,255,0.35)'; gctx.lineWidth = dpr; gctx.stroke();
+
+    // Nearest big city: a ring on the globe plus the readout below it.
+    const near = nearestCity(view.lat, view.lon);
+    if (near) {
+      const at = project(near.city.lat, near.city.lon, c, r);
+      if (at) {
+        gctx.beginPath(); gctx.arc(at[0], at[1], 4.5 * dpr, 0, 2 * Math.PI);
+        gctx.lineWidth = 2 * dpr; gctx.strokeStyle = '#ffc94a'; gctx.stroke();
+        gctx.beginPath(); gctx.arc(at[0], at[1], 1.6 * dpr, 0, 2 * Math.PI);
+        gctx.fillStyle = '#ffc94a'; gctx.fill();
+        if (near.km > 25) {
+          gctx.font = `600 ${11 * dpr}px system-ui, sans-serif`;
+          const w = gctx.measureText(near.city.name).width;
+          const left = at[0] + 8 * dpr + w > N - 4 * dpr;
+          gctx.textAlign = left ? 'right' : 'left'; gctx.textBaseline = 'middle';
+          gctx.lineWidth = 3 * dpr; gctx.strokeStyle = 'rgba(8,10,28,0.85)'; gctx.lineJoin = 'round';
+          const tx = at[0] + (left ? -8 : 8) * dpr;
+          gctx.strokeText(near.city.name, tx, at[1]);
+          gctx.fillStyle = '#ffe3a0'; gctx.fillText(near.city.name, tx, at[1]);
+        }
+      }
+      const place = `${near.city.name}, ${countries[near.city.cc] || near.city.cc}`;
+      $('cityLine').innerHTML = near.km < 2
+        ? `Nearest big city: <b></b>`
+        : `Nearest big city: <b></b> · crosshairs ${fmtDist(near.km)} ${near.dir} of it`;
+      $('cityLine').querySelector('b').textContent = place;
+    } else $('cityLine').textContent = '';
+
+    // Crosshairs across the middle.
+    const gap = 6 * dpr;
+    gctx.lineWidth = 1.25 * dpr; gctx.strokeStyle = 'rgba(255,255,255,0.8)';
+    gctx.shadowColor = 'rgba(0,0,0,0.6)'; gctx.shadowBlur = 2 * dpr;
+    gctx.beginPath();
+    gctx.moveTo(c - r, c); gctx.lineTo(c - gap, c); gctx.moveTo(c + gap, c); gctx.lineTo(c + r, c);
+    gctx.moveTo(c, c - r); gctx.lineTo(c, c - gap); gctx.moveTo(c, c + gap); gctx.lineTo(c, c + r);
+    gctx.stroke();
+    gctx.beginPath(); gctx.arc(c, c, gap, 0, 2 * Math.PI);
+    gctx.strokeStyle = '#ff8a5c'; gctx.lineWidth = 2 * dpr; gctx.stroke();
+    gctx.shadowBlur = 0;
+
+    $('pickName').textContent = pickName ? `${pickName} · ${fmtLoc(view)}` : fmtLoc(view);
+  }
+  function queueRender() {
+    if (renderQueued) return;
+    renderQueued = true;
+    requestAnimationFrame(() => { renderQueued = false; renderGlobe(); });
+  }
+
+  function writeInputs(lat, lon, flash) {
+    $('latIn').value = +Math.abs(lat).toFixed(4); $('latHem').value = lat < 0 ? 'S' : 'N';
+    $('lonIn').value = +Math.abs(lon).toFixed(4); $('lonHem').value = lon > 0 ? 'E' : 'W';
+    if (flash) ['latIn', 'lonIn', 'latHem', 'lonHem'].forEach(id => {
+      const el = $(id); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+    });
+  }
+
+  let anim = null;
+  function flyTo(lat, lon, done) {
+    const from = { ...view }, to = { lat: clampLat(lat), lon };
+    const dl = wrapLon(to.lon - from.lon);
+    const t0 = performance.now(), dur = 600, id = anim = {};
+    (function step(t) {
+      if (anim !== id) return;
+      const u = Math.min(1, Math.max(0, (t - t0) / dur)), e = u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2;
+      view.lat = from.lat + (to.lat - from.lat) * e;
+      view.lon = wrapLon(from.lon + dl * e);
+      if (u >= 1) { view.lat = to.lat; view.lon = wrapLon(to.lon); }
+      renderGlobe();
+      if (u < 1) requestAnimationFrame(step); else if (done) done();
+    })(t0);
+  }
+
+  // Point the crosshairs at a place and fill in its coordinates.
+  function setPick(lat, lon, name) {
+    pickName = name || null;
+    writeInputs(lat, lon, true);
+    flyTo(lat, lon);
+  }
+
+  // Drag (or arrow keys) to turn the globe under the crosshairs.
+  let drag = null;
+  function moved() { pickName = null; writeInputs(view.lat, view.lon); $('err').textContent = ''; queueRender(); }
+  globe.addEventListener('pointerdown', e => {
+    anim = null;
+    drag = { x: e.clientX, y: e.clientY, lat: view.lat, lon: view.lon };
+    globe.setPointerCapture(e.pointerId);
+  });
+  globe.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 3) return;
+    drag.moved = true;
+    const k = 90 / (globe.clientWidth / 2);
+    view.lon = wrapLon(drag.lon - dx * k / Math.max(0.25, Math.cos(view.lat * RAD)));
+    view.lat = clampLat(drag.lat + dy * k);
+    moved();
+  });
+  const endDrag = () => { drag = null; };
+  globe.addEventListener('pointerup', endDrag);
+  globe.addEventListener('pointercancel', endDrag);
+  globe.addEventListener('keydown', e => {
+    const step = e.shiftKey ? 0.1 : 2;
+    const d = { ArrowUp: [step, 0], ArrowDown: [-step, 0], ArrowLeft: [0, -step], ArrowRight: [0, step] }[e.key];
+    if (!d) return;
+    e.preventDefault(); anim = null;
+    view.lat = clampLat(view.lat + d[0]); view.lon = wrapLon(view.lon + d[1]);
+    moved();
+  });
+
+  // Typing coordinates turns the globe.
+  function readInputs() {
+    let lat = parseFloat($('latIn').value), lon = parseFloat($('lonIn').value);
+    if (lat >= 0 && $('latHem').value === 'S') lat = -lat;
+    if (lon >= 0 && $('lonHem').value === 'W') lon = -lon;
+    return { lat, lon };
+  }
+  ['latIn', 'lonIn', 'latHem', 'lonHem'].forEach(id => $(id).addEventListener(id.endsWith('In') ? 'input' : 'change', () => {
+    const { lat, lon } = readInputs();
+    if (!isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return;
+    pickName = null;
+    flyTo(lat, lon);
+  }));
+
+  // ---------- Place search ----------
+  const STATES = { al:'alabama', ak:'alaska', az:'arizona', ar:'arkansas', ca:'california', co:'colorado', ct:'connecticut', de:'delaware', fl:'florida', ga:'georgia', hi:'hawaii', id:'idaho', il:'illinois', in:'indiana', ia:'iowa', ks:'kansas', ky:'kentucky', la:'louisiana', me:'maine', md:'maryland', ma:'massachusetts', mi:'michigan', mn:'minnesota', ms:'mississippi', mo:'missouri', mt:'montana', ne:'nebraska', nv:'nevada', nh:'new hampshire', nj:'new jersey', nm:'new mexico', ny:'new york', nc:'north carolina', nd:'north dakota', oh:'ohio', ok:'oklahoma', or:'oregon', pa:'pennsylvania', ri:'rhode island', sc:'south carolina', sd:'south dakota', tn:'tennessee', tx:'texas', ut:'utah', vt:'vermont', va:'virginia', wa:'washington', wv:'west virginia', wi:'wisconsin', wy:'wyoming', dc:'district of columbia', usa:'united states', us:'united states', uk:'united kingdom' };
+
+  async function searchPlaces(q) {
+    const parts = q.split(',').map(p => p.trim()).filter(Boolean);
+    const terms = parts.slice(1).map(t => STATES[t.toLowerCase()] || t.toLowerCase());
+    let out = [], reached = false;
+    try {
+      const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(parts[0])}&count=20&language=en&format=json`);
+      const j = await r.json(); reached = true;
+      out = (j.results || [])
+        .filter(p => {
+          const hay = [p.admin1, p.admin2, p.admin3, p.country, p.country_code].filter(Boolean).join('|').toLowerCase();
+          return terms.every(t => hay.includes(t));
+        })
+        .map(p => ({ lat: p.latitude, lon: p.longitude, title: p.name, sub: [p.admin1, p.country].filter(Boolean).join(', ') }));
+    } catch (e) {}
+    if (!out.length) {
+      // Fallback: OpenStreetMap handles states, regions, landmarks and addresses.
+      try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=en&q=${encodeURIComponent(q)}`);
+        const j = await r.json(); reached = true;
+        out = j.map(p => {
+          const bits = p.display_name.split(',').map(s => s.trim());
+          return { lat: +p.lat, lon: +p.lon, title: p.name || bits[0], sub: bits.slice(1).filter((b, i, a) => i === 0 || i === a.length - 1).join(', ') };
+        });
+      } catch (e) { if (!reached) throw e; }
+    }
+    return out.slice(0, 6);
+  }
+
+  function showFound(p, others) {
+    const box = $('results');
+    box.innerHTML = '';
+    const label = p.sub ? `${p.title}, ${p.sub.split(',')[0]}` : p.title;
+    setPick(p.lat, p.lon, label);
+    $('err').textContent = '';
+    const f = document.createElement('div'); f.className = 'found';
+    f.innerHTML = 'Found <b></b><br><span></span>';
+    f.querySelector('b').textContent = [p.title, p.sub].filter(Boolean).join(', ');
+    f.querySelector('span').textContent = `${fmtLoc(p)}. The globe and coordinates below now point there; tap "Use these" to keep it.`;
+    box.appendChild(f);
+    if (others.length) {
+      const m = document.createElement('div'); m.className = 'msg'; m.textContent = 'Not the right one? Other matches:';
+      box.appendChild(m);
+      for (const o of others) {
+        const b = document.createElement('button'); b.type = 'button';
+        b.textContent = o.title;
+        const sm = document.createElement('small'); sm.textContent = o.sub; b.appendChild(sm);
+        b.onclick = () => showFound(o, others.filter(x => x !== o).concat(p));
+        box.appendChild(b);
+      }
+    }
+  }
+
+  $('searchForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const q = $('q').value.trim(), box = $('results');
+    if (!q) return;
+    $('q').blur();
+    box.innerHTML = '<div class="msg">Searching…</div>';
+    try {
+      const list = await searchPlaces(q);
+      if (!list.length) { box.innerHTML = '<div class="msg">No places found. Try adding a state or country, separated by commas.</div>'; return; }
+      showFound(list[0], list.slice(1));
+    } catch (err) {
+      box.innerHTML = '<div class="msg">Search needs an internet connection. You can still turn the globe or type coordinates.</div>';
+    }
+  });
+
+  $('geoBtn').onclick = () => locate(false);
+  $('manualBtn').onclick = () => {
+    let lat = parseFloat($('latIn').value), lon = parseFloat($('lonIn').value);
+    // A typed minus sign wins; otherwise the hemisphere menus set the sign.
+    if (lat >= 0 && $('latHem').value === 'S') lat = -lat;
+    if (lon >= 0 && $('lonHem').value === 'W') lon = -lon;
+    if (!isFinite(lat) || lat < -90 || lat > 90) return $('err').textContent = 'Latitude must be between -90 and 90.';
+    if (!isFinite(lon) || lon < -180 || lon > 180) return $('err').textContent = 'Longitude must be between -180 and 180.';
+    const same = Math.abs(view.lat - lat) < 1e-3 && Math.abs(wrapLon(view.lon - lon)) < 1e-3;
+    setLoc(lat, lon, same ? pickName : null);
+  };
+  $('cancelBtn').onclick = () => $('overlay').classList.remove('show');
+  $('locBtn').onclick = () => openOverlay();
+  $('aboutBtn').onclick = () => $('aboutOverlay').classList.add('show');
+  $('aboutClose').onclick = () => $('aboutOverlay').classList.remove('show');
+  $('aboutOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('show'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') $('aboutOverlay').classList.remove('show'); });
+  $('fmtBtn').onclick = () => {
+    use24 = !use24; save(); drawNumbers();
+    $('fmtBtn').textContent = use24 ? '12-hour' : '24-hour';
+  };
+
+  if (loc) { $('locLabel').textContent = locText(loc); $('locLabel').title = fmtLoc(loc); locate(true); }
+  else { openOverlay(); locate(false); }
+  requestAnimationFrame(frame);
+
+  // ---------- Installable / offline ----------
+  if ('serviceWorker' in navigator && window.isSecureContext) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+})();
+</script>
+</body>
+</html>
