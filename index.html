@@ -78,6 +78,20 @@
   .hands.filled path { fill: currentColor; stroke: rgba(0, 0, 0, 0.35); stroke-width: 0.5; }
   .hands.hollow path { fill: currentColor; fill-opacity: 0.1; stroke: currentColor; stroke-width: 0.9; stroke-dasharray: 2.4 1.6; }
   .hands.hollow path.s { stroke-width: 0.7; stroke-dasharray: 1.8 1.2; }
+  /* Shades within a set: the hour hand is the deepest, the second hand the lightest. */
+  .hands.filled path.h { fill: color-mix(in srgb, currentColor 78%, #000); }
+  .hands.filled path.s { fill: color-mix(in srgb, currentColor 55%, #fff); }
+  .hands.hollow path.h { stroke: color-mix(in srgb, currentColor 75%, #000); fill: color-mix(in srgb, currentColor 75%, #000); }
+  .hands.hollow path.s { stroke: color-mix(in srgb, currentColor 55%, #fff); fill: color-mix(in srgb, currentColor 55%, #fff); }
+  .no-sec path.s { display: none; }
+  .hidden-set { display: none; }
+  /* Sunrise and sunset lines belong to a hand set: solid when it is filled, dashed when hollow. */
+  .sunlines line { stroke: color-mix(in srgb, currentColor 80%, #fff); stroke-linecap: round; }
+  .sunlines.filled line { stroke-width: 1.3; }
+  .sunlines.hollow line { stroke-width: 1.1; stroke-dasharray: 3.2 2.4; }
+  .inner-ring text { font-weight: 600; }
+  #mini { cursor: pointer; }
+  #mini:hover, #mini:focus-visible { outline: 2px solid var(--sun); outline-offset: 2px; }
   .digital {
     font-size: clamp(2.6rem, 13vw, 3.6rem); font-weight: 300;
     font-variant-numeric: tabular-nums; letter-spacing: 0.02em; line-height: 1;
@@ -107,13 +121,26 @@
   button:hover { background: rgba(255,255,255,0.16); }
   button.primary { background: var(--accent); border-color: transparent; color: #1d1020; font-weight: 600; }
   .note { font-size: 0.75rem; color: var(--muted); text-align: center; line-height: 1.4; margin: 0; }
-  .themes-wrap { display: flex; flex-direction: column; gap: 6px; }
-  .themes-wrap .k { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
-  .themes { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
-  .theme { padding: 0; overflow: hidden; border-radius: 10px; display: grid; background: rgba(255,255,255,0.06); }
-  .theme i { display: block; height: 8px; }
-  .theme span { display: block; padding: 4px 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.03em; }
-  .theme[aria-pressed="true"] { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); }
+  .opts { display: flex; flex-direction: column; gap: 10px; }
+  .opts .k { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tog {
+    display: flex; align-items: center; gap: 8px; text-align: left; padding: 9px 10px;
+    font-size: 0.82rem; border-radius: 10px; min-width: 0;
+  }
+  .tog::before {
+    content: ""; flex: none; width: 26px; height: 15px; border-radius: 8px;
+    background: rgba(255,255,255,0.18) radial-gradient(circle at 7.5px 50%, var(--text) 5px, transparent 5.5px);
+    transition: background-position 0.15s;
+  }
+  .tog[aria-pressed="true"]::before {
+    background: var(--accent) radial-gradient(circle at 18.5px 50%, #1d1020 5px, transparent 5.5px);
+  }
+  .tog span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .theme-row { display: flex; align-items: center; gap: 10px; }
+  .theme-row select { flex: 1; min-width: 0; height: 40px; }
+  .swatch { flex: none; display: flex; gap: 3px; }
+  .swatch i { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.35); }
 
   /* Location overlay */
   .overlay {
@@ -177,6 +204,12 @@
   .about { gap: 10px; }
   .about a { color: var(--sun); }
   .about ul { margin: 0; padding-left: 18px; font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+  .about ul.log { list-style: none; padding-left: 0; }
+  .about ul.log li { display: flex; gap: 8px; }
+  .about ul.log b { flex: none; min-width: 1.6em; color: var(--text); font-variant-numeric: tabular-nums; }
+  .update-row { display: flex; align-items: center; gap: 10px; }
+  .update-row button { flex: none; padding: 7px 12px; font-size: 0.8rem; }
+  .update-row span { font-size: 0.78rem; color: var(--muted); }
   .about h3 { margin: 4px 0 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
   .err { color: #ffb4a0; font-size: 0.82rem; min-height: 1em; }
 </style>
@@ -199,19 +232,20 @@
       </button>
       <div class="zone" title="Time zone of the selected location">
         <div class="t"><div class="abbr" id="tzAbbr">—</div><div class="iana" id="tzName"></div></div>
-        <canvas id="mini" width="44" height="44" aria-hidden="true"></canvas>
+        <canvas id="mini" width="44" height="44" role="button" tabindex="0" aria-label="Change location" title="Change location"></canvas>
       </div>
     </div>
     <svg class="dial" viewBox="-18 -18 236 236" aria-label="Daylight clock dial">
-      <defs>
-        <clipPath id="upper"><rect x="0" y="0" width="200" height="100"/></clipPath>
-        <clipPath id="lower"><rect x="0" y="100" width="200" height="100"/></clipPath>
-      </defs>
-      <circle cx="100" cy="100" r="92" fill="rgba(140,190,255,0.16)" clip-path="url(#upper)"/>
-      <circle cx="100" cy="100" r="92" fill="rgba(0,0,20,0.35)" clip-path="url(#lower)"/>
+      <!-- Day and night fill: follows the sunrise and sunset of the filled hand set. -->
+      <path id="nightFill" fill="rgba(0,0,20,0.35)"/>
+      <path id="dayFill" fill="rgba(140,190,255,0.16)"/>
       <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
-      <line x1="6" y1="100" x2="194" y2="100" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 3" opacity="0.8"/>
+      <g class="sunlines" id="linesNorm" style="color: var(--norm)"></g>
+      <g class="sunlines" id="linesReal" style="color: var(--real)"></g>
       <g id="ticks"></g>
+      <!-- Inner ring: hour labels for the hidden hand set, placed where the visible hour hand points at those times. -->
+      <g class="inner-ring" id="inner" font-size="6.2" text-anchor="middle" dominant-baseline="central"></g>
+      <text id="lapLabel" x="100" y="128" font-size="7" fill="var(--muted)" text-anchor="middle" dominant-baseline="central"></text>
       <g id="nums" font-size="9" fill="var(--muted)" text-anchor="middle" dominant-baseline="central"></g>
       <!-- Outer minute/second ring, 0 to 60 -->
       <circle cx="100" cy="100" r="97" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.6"/>
@@ -245,12 +279,22 @@
 
     <div class="actions">
       <button id="locBtn">Change location</button>
-      <button id="fmtBtn">24-hour</button>
     </div>
-    <div class="themes-wrap">
-      <div class="k">Theme</div>
-      <div class="themes" id="themes" role="group" aria-label="Hand colors"></div>
-    </div>
+    <section class="panel opts">
+      <div class="k">Display</div>
+      <div class="toggles">
+        <button class="tog" type="button" id="togDial" aria-pressed="false"><span>12-hour dial</span></button>
+        <button class="tog" type="button" id="tog24" aria-pressed="false"><span>24-hour labels</span></button>
+        <button class="tog" type="button" id="togSec" aria-pressed="true"><span>Second hands</span></button>
+        <button class="tog" type="button" id="togLines" aria-pressed="true"><span>Sunrise/set lines</span></button>
+        <button class="tog" type="button" id="togOther" aria-pressed="true" style="grid-column: 1 / -1"><span id="togOtherText">Real-time hands</span></button>
+      </div>
+      <label class="k" for="themeSel">Theme</label>
+      <div class="theme-row">
+        <select id="themeSel" aria-label="Theme"></select>
+        <span class="swatch" aria-hidden="true"><i id="swNorm"></i><i id="swReal"></i></span>
+      </div>
+    </section>
     <p class="note">Sunrise is always 6:00 AM and sunset 6:00 PM; the hours between stretch or shrink to fit. Real times are in the selected location's time zone.</p>
   </div>
   </div>
@@ -283,6 +327,7 @@
     <p class="fine">Place searches go to Open-Meteo and OpenStreetMap. Everything else stays on this device.</p>
     <div class="row">
       <button id="cancelBtn">Cancel</button>
+      <button id="cityBtn" disabled>Nearest city</button>
       <button id="manualBtn">Use these</button>
     </div>
   </div>
@@ -294,9 +339,14 @@
     <p>A clock that stretches the day to fit the sun: sunrise is always 6:00 AM and sunset is always 6:00 PM, wherever you are.</p>
     <p><a href="https://github.com/sonusario/daylight_normalized_clock" target="_blank" rel="noopener">Source on GitHub</a> · <a href="https://sonusario.github.io/" target="_blank" rel="noopener">More projects</a></p>
     <h3>Changelog</h3>
-    <ul>
-      <li>2026-11-02: Installable app that works offline; crosshair globe with nearest big city; clearer place search.</li>
-      <li>2026-11-02: Time zone follows the location; hour, minute and second hands for daylight and real time, a 60 ring, match markers, themes, and a mini globe.</li>
+    <div class="update-row">
+      <button id="updateBtn" type="button">Check for update</button>
+      <span id="updateMsg">Version 3</span>
+    </div>
+    <ul class="log">
+      <li><b>3</b><span>2026-11-02: 12- or 24-hour dial, sunrise and sunset lines for both clocks, day/night fill follows the filled hands, inner hour ring when the other hands are hidden, nearest-city button, tap the mini globe to move, theme menu.</span></li>
+      <li><b>2</b><span>2026-11-02: Time zone follows the location; hour, minute and second hands for daylight and real time, a 60 ring, match markers, themes, and a mini globe.</span></li>
+      <li><b>1</b><span>2026-11-02: Installable app that works offline; crosshair globe with nearest big city; clearer place search.</span></li>
     </ul>
     <h3>Credits</h3>
     <ul>
@@ -442,27 +492,48 @@
     { name: 'Ember', norm: '#ff5a36', real: '#ffd0a1' },
     { name: 'Mono', norm: '#ffffff', real: '#9aa6bd' }
   ];
+  // dial12: the hour hands go round twice a day. showSec, showLines and
+  // showOther hide the second hands, the sunrise/sunset lines, and the
+  // hand set that isn't filled.
   let loc = null, use24 = false, filled = 'norm', theme = 0;
+  let dial12 = false, showSec = true, showLines = true, showOther = true;
   try {
     const s = JSON.parse(localStorage.getItem('daylightClock') || '{}');
-    if (typeof s.lat === 'number' && typeof s.lon === 'number') loc = { lat: s.lat, lon: s.lon, name: typeof s.name === 'string' ? s.name : null };
+    if (typeof s.lat === 'number' && typeof s.lon === 'number') loc = {
+      lat: s.lat, lon: s.lon, name: typeof s.name === 'string' ? s.name : null,
+      // Where it came from: 'gps' follows the device; a picked place stays put.
+      src: s.src === 'pick' ? 'pick' : 'gps'
+    };
     use24 = !!s.use24;
     if (s.filled === 'real') filled = 'real';
     if (Number.isInteger(s.theme) && THEMES[s.theme]) theme = s.theme;
+    dial12 = s.dial12 === true;
+    showSec = s.showSec !== false; showLines = s.showLines !== false; showOther = s.showOther !== false;
   } catch (e) {}
   function save() {
-    try { localStorage.setItem('daylightClock', JSON.stringify({ ...(loc || {}), use24, filled, theme })); } catch (e) {}
+    try { localStorage.setItem('daylightClock', JSON.stringify({ ...(loc || {}), use24, filled, theme, dial12, showSec, showLines, showOther })); } catch (e) {}
   }
   setZone(loc ? zoneFor(loc.lat, loc.lon) : (Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'));
 
   // ---------- Dial setup ----------
   const ticks = $('ticks'), nums = $('nums');
   const pt = (deg, r) => [100 + r * Math.sin(deg * RAD), 100 - r * Math.cos(deg * RAD)];
-  for (let h = 0; h < 24; h++) {
-    const deg = (h - 12) * 15, major = h % 3 === 0;
-    const [x1, y1] = pt(deg, major ? 84 : 87), [x2, y2] = pt(deg, 92);
-    ticks.insertAdjacentHTML('beforeend',
-      `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="rgba(255,255,255,${major ? 0.7 : 0.35})" stroke-width="${major ? 1.4 : 0.8}"/>`);
+  const f2 = v => +v.toFixed(2);
+  // Angle of an hour (0-24) on the face. 24-hour dial: noon at the top.
+  // 12-hour dial: 12 at the top, and the hand goes round twice a day.
+  const hourDeg = h => dial12 ? (((h % 12) + 12) % 12) * 30 : (h - 12) * 15;
+  const degPerHour = () => dial12 ? 30 : 15;
+  // The 12-hour lap (0 = AM, 12 = PM) the filled hour hand is on.
+  let lap = 0;
+  function drawTicks() {
+    ticks.innerHTML = '';
+    const n = dial12 ? 12 : 24;
+    for (let i = 0; i < n; i++) {
+      const deg = i * 360 / n, major = i % 3 === 0;
+      const [x1, y1] = pt(deg, major ? 84 : 87), [x2, y2] = pt(deg, 92);
+      ticks.insertAdjacentHTML('beforeend',
+        `<line x1="${f2(x1)}" y1="${f2(y1)}" x2="${f2(x2)}" y2="${f2(y2)}" stroke="rgba(255,255,255,${major ? 0.7 : 0.35})" stroke-width="${major ? 1.4 : 0.8}"/>`);
+    }
   }
   // Outer ring: 60 minute/second ticks, labelled every 5.
   for (let i = 0; i < 60; i++) {
@@ -474,18 +545,24 @@
       $('ringNums').insertAdjacentHTML('beforeend', `<text x="${x}" y="${y}">${i}</text>`);
     }
   }
+  const hourLabel = h => use24 ? String(h) : `${h % 12 || 12}${h < 12 ? 'a' : 'p'}`;
+  // Outer labels. On the 12-hour dial they show the lap the filled hand is
+  // on, so 3 reads "3a" in the morning and "3p" in the afternoon.
   function drawNumbers() {
     nums.innerHTML = '';
-    for (let h = 0; h < 24; h += 3) {
-      const [x, y] = pt((h - 12) * 15, 75);
-      const label = use24 ? String(h) : `${h % 12 || 12}${h < 12 ? 'a' : 'p'}`;
-      const special = h === 6 || h === 18;
+    const list = dial12 ? Array.from({ length: 12 }, (_, i) => lap + i) : [0, 3, 6, 9, 12, 15, 18, 21];
+    for (const h of list) {
+      const [x, y] = pt(hourDeg(h), 75);
+      const label = dial12 && !use24 ? String(h % 12 || 12) : hourLabel(h);
+      // Daylight time's sunrise and sunset hours stand out, in its hand color.
+      const special = filled === 'norm' && (h === 6 || h === 18);
       nums.insertAdjacentHTML('beforeend',
-        `<text x="${x}" y="${y}"${special ? ' fill="var(--accent)" font-weight="600"' : ''}>${label}</text>`);
+        `<text x="${f2(x)}" y="${f2(y)}"${special ? ' fill="var(--norm)" font-weight="600"' : ''}>${label}</text>`);
     }
+    $('lapLabel').textContent = dial12 ? (use24 ? (lap ? '12–23' : '0–11') : (lap ? 'PM' : 'AM')) : '';
   }
+  drawTicks();
   drawNumbers();
-  $('fmtBtn').textContent = use24 ? '12-hour' : '24-hour';
 
   // A hand pointing straight up from (0,0): a shaft that ends in a chevron.
   // len: tip distance, w: shaft width, c: half-span of the chevron,
@@ -511,9 +588,14 @@
     p.setAttribute('transform', 'translate(1 6) rotate(90)');
   }
   function applyHands() {
-    const nf = filled === 'norm';
-    $('setNorm').setAttribute('class', 'hands ' + (nf ? 'filled' : 'hollow'));
-    $('setReal').setAttribute('class', 'hands ' + (nf ? 'hollow' : 'filled'));
+    const nf = filled === 'norm', sec = showSec ? '' : ' no-sec';
+    $('setNorm').setAttribute('class', 'hands ' + (nf ? 'filled' : 'hollow') + sec + (!nf && !showOther ? ' hidden-set' : ''));
+    $('setReal').setAttribute('class', 'hands ' + (nf ? 'hollow' : 'filled') + sec + (nf && !showOther ? ' hidden-set' : ''));
+    // Sunrise/sunset lines take the same style as their hand set.
+    $('linesNorm').setAttribute('class', 'sunlines ' + (nf ? 'filled' : 'hollow'));
+    $('linesReal').setAttribute('class', 'sunlines ' + (nf ? 'hollow' : 'filled'));
+    $('linesNorm').style.display = showLines && (nf || showOther) ? '' : 'none';
+    $('linesReal').style.display = showLines && (!nf || showOther) ? '' : 'none';
     // Hollow hands draw on top so their outline shows over the filled set.
     const svg = $('setNorm').parentNode, hub = svg.lastElementChild;
     svg.insertBefore($(nf ? 'setNorm' : 'setReal'), hub);
@@ -522,27 +604,36 @@
     $('legA').style.color = nf ? 'var(--norm)' : 'var(--real)';
     $('legB').style.color = nf ? 'var(--real)' : 'var(--norm)';
     $('legAText').textContent = nf ? 'Daylight time' : 'Real time';
-    $('legBText').textContent = nf ? 'Real time' : 'Daylight time';
+    $('legBText').textContent = (nf ? 'Real time' : 'Daylight time') + (showOther ? '' : ' · inner ring');
+    $('legB').parentNode.style.opacity = showOther ? '' : '0.75';
+    $('togOtherText').textContent = nf ? 'Real-time hands' : 'Daylight hands';
+    for (const [id, on] of [['togDial', dial12], ['tog24', use24], ['togSec', showSec], ['togLines', showLines], ['togOther', showOther]])
+      $(id).setAttribute('aria-pressed', String(on));
+    deco = null; drawNumbers();
   }
-  applyHands();
   $('legend').onclick = () => { filled = filled === 'norm' ? 'real' : 'norm'; save(); applyHands(); };
+  const toggle = (id, fn) => { $(id).onclick = () => { fn(); save(); applyHands(); }; };
+  toggle('togDial', () => { dial12 = !dial12; drawTicks(); matches = null; });
+  toggle('tog24', () => { use24 = !use24; });
+  toggle('togSec', () => { showSec = !showSec; });
+  toggle('togLines', () => { showLines = !showLines; });
+  toggle('togOther', () => { showOther = !showOther; });
 
   // ---------- Themes ----------
   function applyTheme(i) {
     theme = i;
     document.documentElement.style.setProperty('--norm', THEMES[i].norm);
     document.documentElement.style.setProperty('--real', THEMES[i].real);
-    for (const b of $('themes').children) b.setAttribute('aria-pressed', String(+b.dataset.i === i));
+    $('themeSel').value = String(i);
+    $('swNorm').style.background = THEMES[i].norm; $('swNorm').title = 'Daylight hands';
+    $('swReal').style.background = THEMES[i].real; $('swReal').title = 'Real-time hands';
   }
   THEMES.forEach((t, i) => {
-    const b = document.createElement('button');
-    b.type = 'button'; b.className = 'theme'; b.dataset.i = i;
-    b.title = `${t.name}: daylight hands ${t.norm}, real-time hands ${t.real}`;
-    b.innerHTML = `<i style="background:${t.norm}"></i><i style="background:${t.real}"></i><span></span>`;
-    b.lastElementChild.textContent = t.name;
-    b.onclick = () => { applyTheme(i); save(); };
-    $('themes').appendChild(b);
+    const o = document.createElement('option');
+    o.value = String(i); o.textContent = t.name;
+    $('themeSel').appendChild(o);
   });
+  $('themeSel').onchange = () => { applyTheme(+$('themeSel').value); save(); };
   applyTheme(theme);
 
   // ---------- Sky colors ----------
@@ -615,10 +706,110 @@
     }
     matches = { at: now, list: out };
     $('notches').innerHTML = out.map(m => {
-      const deg = (m.hour - 12) * 15, [tx, ty] = pt(deg, 91.2), [ax, ay] = pt(deg - 2.6, 96.4), [bx, by] = pt(deg + 2.6, 96.4);
+      const deg = hourDeg(m.hour), [tx, ty] = pt(deg, 91.2), [ax, ay] = pt(deg - 2.6, 96.4), [bx, by] = pt(deg + 2.6, 96.4);
       return `<path d="M${tx} ${ty}L${ax} ${ay}L${bx} ${by}Z" fill="var(--text)" stroke="rgba(0,0,0,0.4)" stroke-width="0.4"><title>The clocks agree at ${fmtReal(m.t)}</title></path>`;
     }).join('');
   }
+
+  // ---------- Day/night fill, sunrise/sunset lines, inner ring ----------
+  // A pie slice of the face from hour h0 to h1 (h1 > h0), radius 92.
+  function wedge(h0, h1) {
+    const sweep = (h1 - h0) * degPerHour();
+    if (sweep <= 0.01) return '';
+    if (sweep >= 359.99) return 'M8 100A92 92 0 1 1 192 100A92 92 0 1 1 8 100Z';
+    const a0 = hourDeg(h0), [x0, y0] = pt(a0, 92), [x1, y1] = pt(a0 + sweep, 92);
+    return `M100 100L${f2(x0)} ${f2(y0)}A92 92 0 ${sweep > 180 ? 1 : 0} 1 ${f2(x1)} ${f2(y1)}Z`;
+  }
+  // Pieces of a span on the 24-hour clock (start, length in hours) that fall
+  // inside [from, to), as [h0, h1] pairs.
+  function clip(start, len, from, to) {
+    const out = [];
+    for (const base of [-24, 0, 24]) {
+      const a = Math.max(start + base, from), b = Math.min(start + base + len, to);
+      if (b > a) out.push([a, b]);
+    }
+    return out;
+  }
+  let deco = null;
+  function drawDeco(now, r) {
+    deco = { at: cache.at, lap };
+    const isDay = r.phase === 'day';
+    const rise = isDay ? r.start : r.end, set = isDay ? r.end : r.start;
+    // Real sunrise hour and day length, in the location's zone.
+    let realLen = isDay ? r.end - r.start : (r.nextDay ? r.nextDay[1] - r.nextDay[0] : 0);
+    realLen = Math.max(0, Math.min(24, realLen / 3600000));
+    const realRise = realHourAt(isDay ? r.start : r.end);
+    const day = filled === 'norm' ? { start: 6, len: 12 } : { start: realRise, len: realLen };
+    const from = dial12 ? lap : 0, to = from + (dial12 ? 12 : 24);
+    const dayParts = clip(day.start, day.len, from, to);
+    const nightParts = clip(day.start + day.len, 24 - day.len, from, to);
+    $('dayFill').setAttribute('d', dayParts.map(p => wedge(...p)).join(''));
+    $('nightFill').setAttribute('d', nightParts.map(p => wedge(...p)).join(''));
+
+    // Lines from the hub to the rim at each set's sunrise and sunset.
+    // Each line breaks around the hour-label circle so the labels stay readable.
+    const line = (h, title) => {
+      const d = hourDeg(h), seg = (r0, r1) => {
+        const [x1, y1] = pt(d, r0), [x2, y2] = pt(d, r1);
+        return `<line x1="${f2(x1)}" y1="${f2(y1)}" x2="${f2(x2)}" y2="${f2(y2)}"><title>${title}</title></line>`;
+      };
+      return seg(6, 68) + seg(82, 93);
+    };
+    $('linesNorm').innerHTML = line(6, 'Daylight sunrise, 6:00 AM') + line(18, 'Daylight sunset, 6:00 PM');
+    $('linesReal').innerHTML = r.today.polar ? '' :
+      line(realRise, `Sunrise, ${fmtReal(rise)}`) + line(realHourAt(set), `Sunset, ${fmtReal(set)}`);
+
+    drawInner(now);
+  }
+
+  // With the hollow set hidden, an inner ring of its hours sits where the
+  // filled hour hand will point at those moments, so one hand reads both
+  // clocks (like a speedometer's mph and km/h). Labels cover the 12 hours
+  // either side of now (24-hour dial) or the current lap (12-hour dial).
+  function drawInner(now) {
+    const g = $('inner');
+    g.innerHTML = '';
+    if (showOther || !loc) return;
+    const normAt = t => { const r = compute(t, loc.lat, loc.lon); return r ? normHourOf(r, t) : null; };
+    const vis = filled === 'norm' ? normAt : realHourAt, hid = filled === 'norm' ? realHourAt : normAt;
+    // Sample both clocks every 10 minutes for a day either side, unwrapping
+    // the hours so they keep counting up past 24.
+    const STEP = 600000, N = 288, S = [];
+    let pv = null, ph = null, ov = 0, oh = 0;
+    for (let i = -N; i <= N; i++) {
+      const t = now + i * STEP, v = vis(t), w = hid(t);
+      if (v === null || w === null) { S.push(null); continue; }
+      if (pv !== null && v < pv - 12) ov += 24;
+      if (ph !== null && w < ph - 12) oh += 24;
+      pv = v; ph = w;
+      S.push({ v: v + ov, w: w + oh });
+    }
+    const here = S[N];
+    if (!here) return;
+    // The window of visible hours to label.
+    const vLo = dial12 ? here.v - ((here.v % 24 + 24) % 24) + lap : here.v - 12;
+    const vHi = vLo + (dial12 ? 12 : 24);
+    const every = dial12 ? 1 : 3, out = [];
+    for (let i = 1; i < S.length; i++) {
+      const a = S[i - 1], b = S[i];
+      if (!a || !b || b.w - a.w > 6) continue;
+      for (let k = Math.ceil(a.w); k < b.w; k++) {
+        const f = (k - a.w) / (b.w - a.w), v = a.v + (b.v - a.v) * f;
+        const hk = ((k % 24) + 24) % 24;
+        if (v < vLo || v >= vHi || hk % every) continue;
+        out.push({ v, hk });
+      }
+    }
+    const col = filled === 'norm' ? 'var(--real)' : 'var(--norm)';
+    g.innerHTML = `<circle cx="100" cy="100" r="68.5" fill="none" stroke="${col}" stroke-opacity="0.35" stroke-width="0.5"/>` +
+      out.map(({ v, hk }) => {
+        const d = hourDeg(v), [x, y] = pt(d, 63), [x1, y1] = pt(d, 67), [x2, y2] = pt(d, 70);
+        return `<line x1="${f2(x1)}" y1="${f2(y1)}" x2="${f2(x2)}" y2="${f2(y2)}" stroke="${col}" stroke-width="0.8"/>` +
+          `<text x="${f2(x)}" y="${f2(y)}" fill="${col}">${hourLabel(hk)}</text>`;
+      }).join('');
+  }
+
+  applyHands();
 
   // ---------- Render loop ----------
   let cache = null; // recompute sun events once a minute at most
@@ -642,9 +833,15 @@
       : `${H % 12 || 12}:${pad(M)}<span class="sec">:${pad(S)}</span><span class="ampm">${H < 12 ? 'AM' : 'PM'}</span>`;
 
     // Hands: the hour hand reads the 24-hour face; minute and second hands read the 0-60 ring.
-    turn('nH', (dh - 12) * 15); turn('nM', mFloat * 6); turn('nS', sFloat * 6);
+    turn('nH', hourDeg(dh)); turn('nM', mFloat * 6); turn('nS', sFloat * 6);
     const off = zoneOffset(now), wall = ((now + off) % DAY + DAY) % DAY, rh = wall / 3600000;
-    turn('rH', (rh - 12) * 15); turn('rM', (wall % 3600000) / 60000 * 6); turn('rS', (wall % 60000) / 1000 * 6);
+    turn('rH', hourDeg(rh)); turn('rM', (wall % 3600000) / 60000 * 6); turn('rS', (wall % 60000) / 1000 * 6);
+
+    // Fill, sunrise/sunset lines and inner ring: when the sun times, the
+    // settings, or the 12-hour lap change.
+    const newLap = (filled === 'norm' ? dh : rh) < 12 ? 0 : 12;
+    if (newLap !== lap) { lap = newLap; if (dial12) drawNumbers(); }
+    if (!deco || deco.at !== cache.at || deco.lap !== lap) drawDeco(now, r);
 
     // Sky
     const [top, bot] = sky(dh);
@@ -704,8 +901,8 @@
     $('tzName').title = tz;
     renderMini();
   }
-  function setLoc(lat, lon, name) {
-    loc = { lat, lon, name: name || null }; cache = null; matches = null; save();
+  function setLoc(lat, lon, name, src) {
+    loc = { lat, lon, name: name || null, src: src || 'pick' }; cache = null; matches = null; save();
     setZone(zoneFor(lat, lon));
     $('locLabel').textContent = locText(loc);
     $('locLabel').title = fmtLoc(loc);
@@ -729,7 +926,7 @@
     if (!('geolocation' in navigator)) { openOverlay("This browser can't share location — enter coordinates instead."); return; }
     $('err').textContent = 'Locating…';
     navigator.geolocation.getCurrentPosition(
-      p => setLoc(p.coords.latitude, p.coords.longitude),
+      p => setLoc(p.coords.latitude, p.coords.longitude, null, 'gps'),
       e => {
         if (silent && loc) return;
         if (e.code === 1) {
@@ -754,7 +951,7 @@
   mini.width = mini.height = Math.round(44 * Math.max(2, dpr));
   const MW = 1024, MH = 512;
   let landMask = null, landLoading = false, landTried = false;
-  let view = { lat: 25, lon: -60 }, pickName = null, renderQueued = false;
+  let view = { lat: 25, lon: -60 }, pickName = null, renderQueued = false, nearCity = null;
   const clampLat = v => Math.max(-90, Math.min(90, v));
   const wrapLon = v => ((v + 540) % 360 + 360) % 360 - 180;
 
@@ -921,7 +1118,9 @@
     const { r, c } = paintGlobe(gctx, N, view, dpr);
 
     // Nearest big city: a ring on the globe plus the readout below it.
-    const near = nearestCity(view.lat, view.lon);
+    const near = nearCity = nearestCity(view.lat, view.lon);
+    $('cityBtn').disabled = !near;
+    $('cityBtn').title = near ? `Use ${near.city.name} (${fmtLoc(near.city)}) instead of the crosshairs` : '';
     if (near) {
       const at = project(near.city.lat, near.city.lon, c, r);
       if (at) {
@@ -1117,21 +1316,49 @@
     const same = Math.abs(view.lat - lat) < 1e-3 && Math.abs(wrapLon(view.lon - lon)) < 1e-3;
     setLoc(lat, lon, same ? pickName : null);
   };
+  // Snap to the nearest big city's own coordinates.
+  $('cityBtn').onclick = () => {
+    if (!nearCity) return;
+    const c = nearCity.city;
+    setLoc(c.lat, c.lon, `${c.name}, ${countries[c.cc] || c.cc}`);
+  };
   $('cancelBtn').onclick = () => $('overlay').classList.remove('show');
+  // The mini globe is a shortcut to the location picker.
+  $('mini').onclick = () => openOverlay();
+  $('mini').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openOverlay(); } };
   $('locBtn').onclick = () => openOverlay();
   $('aboutBtn').onclick = () => $('aboutOverlay').classList.add('show');
   $('aboutClose').onclick = () => $('aboutOverlay').classList.remove('show');
   $('aboutOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('show'); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') $('aboutOverlay').classList.remove('show'); });
-  $('fmtBtn').onclick = () => {
-    use24 = !use24; save(); drawNumbers();
-    $('fmtBtn').textContent = use24 ? '12-hour' : '24-hour';
-  };
 
-  if (loc) { $('locLabel').textContent = locText(loc); $('locLabel').title = fmtLoc(loc); locate(true); }
+  // A location from the device keeps following it; a place picked by search,
+  // globe, city or coordinates stays put until changed.
+  if (loc) { $('locLabel').textContent = locText(loc); $('locLabel').title = fmtLoc(loc); if (loc.src === 'gps') locate(true); }
   else { openOverlay(); locate(false); }
   loadLand();
   requestAnimationFrame(frame);
+
+  // ---------- Updates ----------
+  // Fetches the latest service worker; a new one installs, takes over and
+  // the page reloads into the new version.
+  const APP_VERSION = 3;
+  $('updateBtn').onclick = async () => {
+    const msg = $('updateMsg');
+    const reg = 'serviceWorker' in navigator && window.isSecureContext && await navigator.serviceWorker.getRegistration().catch(() => null);
+    if (!reg) { msg.textContent = 'Reloading…'; location.reload(); return; }
+    msg.textContent = 'Checking…';
+    try {
+      await reg.update();
+      const next = reg.installing || reg.waiting;
+      if (!next) { msg.textContent = `Up to date · version ${APP_VERSION}`; return; }
+      msg.textContent = 'Updating…';
+      navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true });
+      next.addEventListener('statechange', () => { if (next.state === 'activated') location.reload(); });
+    } catch (e) {
+      msg.textContent = "Couldn't reach the site. Try again when online.";
+    }
+  };
 
   // ---------- Installable / offline ----------
   if ('serviceWorker' in navigator && window.isSecureContext) {
