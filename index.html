@@ -328,8 +328,6 @@
       <!-- Day and night fill: follows the sunrise and sunset of the filled hand set. -->
       <path id="nightFill" fill="rgba(0,0,20,0.35)"/>
       <path id="dayFill" fill="rgba(140,190,255,0.16)"/>
-      <!-- Seam opposite the main hour hand, where 6 (or 12) hours ago meets 6 (or 12) hours ahead. -->
-      <path id="seam" stroke="rgba(255,255,255,0.28)" stroke-width="0.6" stroke-dasharray="1.2 1.8" fill="none"/>
       <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
       <g class="sunlines" id="linesNorm" style="color: var(--norm)"></g>
       <g class="sunlines" id="linesReal" style="color: var(--real)"></g>
@@ -439,7 +437,7 @@
         <li><svg viewBox="0 0 26 12" aria-hidden="true"><rect x="2" y="1" width="11" height="10" fill="rgba(140,190,255,0.35)"/><rect x="13" y="1" width="11" height="10" fill="rgba(0,0,20,0.6)"/></svg><span>Light and dark fill: sun up and sun down, by the main hands.</span></li>
         <li><svg viewBox="0 0 26 12" aria-hidden="true"><circle cx="13" cy="6" r="5" fill="none" stroke="var(--muted)" stroke-width="1"/><text x="13" y="6.4" font-size="6" fill="var(--muted)" text-anchor="middle" dominant-baseline="central">60</text></svg><span>Hour hands read the hour face. Minute and second hands read the 0 to 60 ring, millisecond hands the 0 to 1000 ring.</span></li>
         <li><svg viewBox="0 0 26 12" aria-hidden="true"><line x1="2" y1="6" x2="20" y2="6" stroke="var(--text)" stroke-width="1" stroke-dasharray="2 1.5"/><circle cx="21" cy="6" r="3" fill="var(--text)"/></svg><span>Ruler hands: one each for hours (h), minutes (m), and, when those hands are on, seconds (s) and milliseconds. Drag a knob; each snaps to whole hours, minutes, seconds or 10 ms. Together they set a time on the main clock, and the line under the dial says when that is on both clocks.</span></li>
-        <li><svg viewBox="0 0 26 12" aria-hidden="true"><circle cx="13" cy="6" r="5" fill="none" stroke="var(--muted)" stroke-width="1"/><path d="M13 6V1.5" stroke="var(--text)" stroke-width="1.2"/></svg><span>Shading and labels show the hours within half a face of the main hour hand (6 hours either side on the 12-hour dial), so the hand drags them along like a curtain. The faint dotted seam opposite the hand is where hours ago meet hours ahead.</span></li>
+        <li><svg viewBox="0 0 26 12" aria-hidden="true"><circle cx="13" cy="6" r="5" fill="none" stroke="var(--muted)" stroke-width="1"/><path d="M13 6V1.5" stroke="var(--text)" stroke-width="1.2"/></svg><span>Shading and labels show the next full turn of the main hour hand (12 hours on the 12-hour dial), so the hand drags them along like a curtain: once it passes a label, that label flips to the next time it will reach that spot (PM to AM and back).</span></li>
       </ul>
       <p class="note">Sunrise is always 6:00 AM and sunset 6:00 PM; the hours between stretch or shrink to fit. With smooth daylight rate on, the clock speeds up and slows down gradually instead of snapping at sunrise and sunset, and still hits 6:00 at both. Real times are in the selected location's time zone. Tap the mini globe or the place name to change location.</p>
     </section>
@@ -488,9 +486,10 @@
     <h3>Changelog</h3>
     <div class="update-row">
       <button id="updateBtn" type="button">Check for update</button>
-      <span id="updateMsg">Version 7</span>
+      <span id="updateMsg">Version 8</span>
     </div>
     <ul class="log">
+      <li><b>8</b><span>2026-11-04: The dial shows the hour hand's next full turn: once the hand passes a 12-hour label it flips AM/PM, and the shading, sun lines, inner ring, triangles and ruler follow the same window.</span></li>
       <li><b>7</b><span>2026-11-04: Day/night shading follows the main hour hand like a curtain: each spot is lit if the sun is up when the hand points there, on both dials, for real and daylight hands, including polar day and night; sun lines and 12-hour labels follow the same rule, with a faint seam opposite the hand.</span></li>
       <li><b>6</b><span>2026-11-04: The 12-hour dial shades from the sunrise line to the sunset line; the hour hand is now the brightest of each set; the rate graph always fits exactly 24 hours, in steps of 1 to 15 minutes, with its details in a strip below it; times show in their clock's color; label density covers the 0 to 60 ring; separate ruler hands for hours, minutes, seconds and milliseconds.</span></li>
       <li><b>5</b><span>2026-11-03: Smooth daylight rate option; rate graph with hover details and scales; bigger clock; Details, Rate, Display and Legend tabs that collapse; dashboard layout on wide screens; ruler snaps to the nearest ring; black triangles where the clocks are furthest apart and a progress arc to the next triangle; main-hands switch and reset button in Display; Phosphor is the default theme; the 12-hour dial now shades and labels the 6 hours either side of the hand.</span></li>
@@ -768,8 +767,8 @@
   const hourDeg = h => dial12 ? mod(h, 12) * 30 : (h - 12) * 15;
   const degPerHour = () => dial12 ? 30 : 15;
   // The filled set's hour right now (0-24). On the 12-hour dial the face
-  // shows the 6 hours either side of the hour hand, so the light and labels
-  // just behind the hand are the recent past and those ahead are coming up.
+  // shows the hand's next full turn, so the spot just behind the hand stands
+  // for 12 hours from now and the spot just ahead for right now.
   let vNow = 0, vHour = -1;
   // Label density 1-4: hours between hour labels, and 60-ring / ms-ring steps.
   const DENS = { 1: [6, 15, 250], 2: [3, 5, 100], 3: [2, 2, 50], 4: [1, 1, 25] };
@@ -814,9 +813,10 @@
   function drawNumbers() {
     nums.innerHTML = '';
     const step = DENS[density][0], list = [];
-    // 12-hour dial: each spot is labelled with the hour it stands for within
-    // 6 hours of the main hour hand, the same window the shading uses.
-    if (dial12) for (let i = 0; i < 12; i += step) { const lo = vNow - 6; list.push(mod(Math.round(lo + mod(i - lo, 12)), 24)); }
+    // 12-hour dial: each spot is labelled with the next time the main hour
+    // hand will reach it, the same window the shading uses, so a label flips
+    // AM/PM as the hand passes it.
+    if (dial12) for (let i = 0; i < 12; i += step) list.push(mod(Math.round(vNow + mod(i - vNow, 12)), 24));
     else for (let h = 0; h < 24; h += step) list.push(h);
     nums.setAttribute('font-size', !dial12 && step === 1 ? 7.8 : 10);
     for (const h of list) {
@@ -1026,7 +1026,7 @@
   const apartText = ev => `daylight time is ${fmtDur(Math.abs(ev.d) * 3600000)} ${ev.d > 0 ? 'ahead' : 'behind'}`;
   function drawNotches(now) {
     const F0 = filledUnwrapped(now);
-    $('notches').innerHTML = events.list.filter(ev => !dial12 || ev.F - F0 < 6).map(ev => {
+    $('notches').innerHTML = events.list.filter(ev => !dial12 || ev.F - F0 < 12).map(ev => {
       const deg = hourDeg(ev.hour), [tx, ty] = pt(deg, 91.2), [ax, ay] = pt(deg - 2.6, 96.4), [bx, by] = pt(deg + 2.6, 96.4);
       const agree = ev.type === 'agree';
       const title = agree ? `The clocks agree at ${fmtReal(ev.t)}` : `Furthest apart at ${fmtReal(ev.t)}: ${apartText(ev)}`;
@@ -1038,7 +1038,7 @@
     const g = $('arc'), F0 = filledUnwrapped(now);
     const next = showArc && events && events.list.find(ev => ev.t > now);
     const adv = next ? next.F - F0 : 0;
-    if (!next || adv <= 0 || (dial12 && adv >= 6)) { g.style.display = 'none'; return; }
+    if (!next || adv <= 0 || (dial12 && adv >= 12)) { g.style.display = 'none'; return; }
     g.style.display = '';
     g.setAttribute('class', next.type);
     const R = 94.6, a0 = hourDeg(vNow), sweep = Math.min(359.5, adv * degPerHour());
@@ -1073,19 +1073,19 @@
   function drawDeco(now, r) {
     deco = { key: decoKey() };
     if (dial12) drawNumbers();
-    // The face shows the hours within half a face of the main hour hand: 6
-    // hours either side on the 12-hour dial, 12 on the 24-hour dial. Each spot
-    // is shaded by whether the sun is up at the moment the main hour hand
-    // points there, so the hand drags the shading along like a curtain, and
-    // the seam where the far past meets the far future sits opposite the hand.
-    // This is the same rule the inner ring and the outer labels follow.
-    const half = dial12 ? 6 : 12, L = knotsAt(now);
+    // The face shows the main hour hand's next full turn: 12 hours on the
+    // 12-hour dial, 24 on the 24-hour dial. Each spot is shaded by whether the
+    // sun will be up when the main hour hand next points there, so the hand
+    // drags the shading along like a curtain: the spot it just passed now
+    // stands for a full turn from now. The outer labels, inner ring, sun lines,
+    // triangles and ruler follow the same rule.
+    const face = dial12 ? 12 : 24, L = knotsAt(now);
     // Walk the sun's day and night spans (between sunrise and sunset knots),
     // measured in the main clock's own hours, and keep what falls in view.
     // Where the sun only grazes the horizon, daylight time jumps 12 hours in
     // an instant; that jump takes the sun's real state at that instant
     // (still up in polar day, still down in polar night).
-    const F0 = unwrappedOf(filled)(now), lo = F0 - half, hi = F0 + half;
+    const F0 = unwrappedOf(filled)(now), lo = F0, hi = F0 + face;
     const hrs = k => filled === 'norm' ? k.h : k.t / 3600000;
     const dayParts = [], nightParts = [];
     for (let i = 0; i + 1 < L.length; i++) {
@@ -1096,12 +1096,10 @@
     }
     $('dayFill').setAttribute('d', dayParts.map(p => wedge(...p)).join(''));
     $('nightFill').setAttribute('d', nightParts.map(p => wedge(...p)).join(''));
-    const [sx, sy] = pt(hourDeg(vNow + half), 92), [ix, iy] = pt(hourDeg(vNow + half), 20);
-    $('seam').setAttribute('d', `M${f2(ix)} ${f2(iy)}L${f2(sx)} ${f2(sy)}`);
 
     // Lines from the hub to the rim at each set's sunrise and sunset, where
     // that set's hour hand will point (or pointed) at the moment, for the
-    // sun events within half a face of that hand.
+    // sun events in that hand's next full turn.
     // Each line breaks around the hour-label circle so the labels stay readable.
     const line = (h, title) => {
       const d = hourDeg(h), seg = (r0, r1) => {
@@ -1115,7 +1113,7 @@
       let out = '';
       for (let i = 0; i < L.length; i++) {
         const k = L[i], du = U(k.t) - U0;
-        if (Math.abs(du) >= half) continue;
+        if (du < 0 || du >= face) continue;
         // Where the sun only grazes the horizon (polar day or night), real
         // time has no sunrise or sunset to mark.
         const merged = (i > 0 && L[i - 1].t === k.t) || (i + 1 < L.length && L[i + 1].t === k.t);
@@ -1131,9 +1129,9 @@
 
   // With the hollow set hidden, an inner ring of its hours sits where the
   // filled hour hand will point at those moments, so one hand reads both
-  // clocks (like a speedometer's mph and km/h). Labels cover the 12 hours
-  // either side of now (24-hour dial) or 6 hours either side (12-hour dial).
-  const innerKey = now => Math.floor(now / 600000) + (dial12 ? ':' + vHour : '') + (smooth ? 's' : '');
+  // clocks (like a speedometer's mph and km/h). Labels cover the hand's
+  // next full turn: 24 hours (24-hour dial) or 12 hours (12-hour dial).
+  const innerKey = now => Math.floor(now / 60000) + (dial12 ? ':' + vHour : '') + (smooth ? 's' : '');
   function drawInner(now) {
     inner = { key: innerKey(now) };
     const g = $('inner');
@@ -1152,7 +1150,7 @@
       S.push({ v: v + ov, w: w + oh });
     }
     const here = S[N];
-    const vLo = here.v - (dial12 ? 6 : 12), vHi = vLo + (dial12 ? 12 : 24);
+    const vLo = here.v, vHi = vLo + (dial12 ? 12 : 24);
     const every = DENS[density][0], out = [];
     for (let i = 1; i < S.length; i++) {
       const a = S[i - 1], b = S[i];
@@ -1178,7 +1176,7 @@
   // the 0-60 ring, milliseconds on the 0-1000 ring (seconds and milliseconds
   // only while those clock hands are on). Each snaps to whole units. Read
   // together they name a time on the main clock, from 6 hours ago to 18 hours
-  // ahead (on the 12-hour dial, within 6 hours of the hand). The line under
+  // ahead (on the 12-hour dial, the next 12 hours, like the labels). The line under
   // the dial gives that moment on both clocks, and the rate graph marks it.
   // [line end, knob radius, knob size, line width, letter]
   const RULERS = { h: [66, 58, 4.4, 1.3, 'h'], m: [95, 88, 3.8, 0.9, 'm'], s: [102, 99, 3, 0.6, 's'], ms: [118, 114.5, 2.6, 0.5, ''] };
@@ -1200,7 +1198,7 @@
     const M = mod(Math.round(rulers.m / 6), 60), S = showSec ? mod(Math.round(rulers.s / 6), 60) : 0;
     const MS = showMs ? mod(Math.round(rulers.ms / 3.6) * 10, 1000) : 0;
     const pos = H + M / 60 + S / 3600 + MS / 3600000;
-    const dh = dial12 ? mod(pos - vNow + 6, 12) - 6 : mod(pos - vNow + 6, 24) - 6;
+    const dh = dial12 ? mod(pos - vNow, 12) : mod(pos - vNow + 6, 24) - 6;
     return filledTimeAfter(now, dh);
   }
   // A time of day given in ms since midnight, to the second or millisecond.
@@ -2034,7 +2032,7 @@
   // ---------- Updates ----------
   // Fetches the latest service worker; a new one installs, takes over and
   // the page reloads into the new version.
-  const APP_VERSION = 7;
+  const APP_VERSION = 8;
   $('updateBtn').onclick = async () => {
     const msg = $('updateMsg');
     const reg = 'serviceWorker' in navigator && window.isSecureContext && await navigator.serviceWorker.getRegistration().catch(() => null);
