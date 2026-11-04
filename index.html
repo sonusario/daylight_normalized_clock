@@ -94,18 +94,23 @@
   .hands.filled path { fill: currentColor; stroke: rgba(0, 0, 0, 0.35); stroke-width: 0.5; }
   .hands.hollow path { fill: currentColor; fill-opacity: 0.1; stroke: currentColor; stroke-width: 0.9; stroke-dasharray: 2.4 1.6; }
   .hands.hollow path.s { stroke-width: 0.7; stroke-dasharray: 1.8 1.2; }
-  /* Shades within a set: the hour hand is the deepest, the second hand the lightest. */
-  .hands.filled path.h { fill: color-mix(in srgb, currentColor 78%, #000); }
-  .hands.filled path.s { fill: color-mix(in srgb, currentColor 55%, #fff); }
-  .hands.hollow path.h { stroke: color-mix(in srgb, currentColor 75%, #000); fill: color-mix(in srgb, currentColor 75%, #000); }
-  .hands.hollow path.s { stroke: color-mix(in srgb, currentColor 55%, #fff); fill: color-mix(in srgb, currentColor 55%, #fff); }
+  /* Shades within a set: the hour hand is the brightest, each faster hand a step darker. */
+  .hands.filled path.h { fill: color-mix(in srgb, currentColor 62%, #fff); }
+  .hands.filled path.s { fill: color-mix(in srgb, currentColor 72%, #000); }
+  .hands.hollow path.h { stroke: color-mix(in srgb, currentColor 62%, #fff); fill: color-mix(in srgb, currentColor 62%, #fff); }
+  .hands.hollow path.s { stroke: color-mix(in srgb, currentColor 72%, #000); fill: color-mix(in srgb, currentColor 72%, #000); }
   .no-sec path.s { display: none; }
   .no-ms path.ms { display: none; }
-  .hands.filled path.ms { fill: color-mix(in srgb, currentColor 40%, #fff); stroke-width: 0.3; }
-  .hands.hollow path.ms { stroke-width: 0.5; stroke-dasharray: 1.4 1; stroke: color-mix(in srgb, currentColor 40%, #fff); fill: none; }
+  .hands.filled path.ms { fill: color-mix(in srgb, currentColor 52%, #000); stroke: rgba(255,255,255,0.3); stroke-width: 0.3; }
+  .hands.hollow path.ms { stroke-width: 0.5; stroke-dasharray: 1.4 1; stroke: color-mix(in srgb, currentColor 52%, #000); fill: none; }
   svg.dial.ruling { touch-action: none; cursor: crosshair; }
-  #ruler line { stroke: var(--text); stroke-width: 0.9; stroke-dasharray: 2 1.5; stroke-linecap: round; }
-  #ruler circle { fill: var(--text); fill-opacity: 0.9; stroke: rgba(0,0,0,0.45); stroke-width: 0.6; cursor: grab; }
+  #ruler line { stroke: var(--text); stroke-dasharray: 2 1.5; stroke-linecap: round; }
+  #ruler circle { fill: var(--text); fill-opacity: 0.92; stroke: rgba(0,0,0,0.45); stroke-width: 0.6; cursor: grab; }
+  #ruler text { fill: #111; font-weight: 700; pointer-events: none; }
+  #ruler .rh.drag circle { fill: var(--accent); }
+  /* Times in the hand colors: real time and daylight time. */
+  .cr { color: var(--real); font-weight: 600; }
+  .cn { color: var(--norm); font-weight: 600; }
   .ruler-info { font-size: 0.8rem; text-align: center; min-height: 1.2em; font-variant-numeric: tabular-nums; line-height: 1.4; }
   .ruler-info:empty { display: none; }
   .loc { cursor: pointer; }
@@ -125,8 +130,8 @@
     font-size: clamp(2.3rem, 11vw, 3.2rem); font-weight: 300;
     font-variant-numeric: tabular-nums; letter-spacing: 0.02em; line-height: 1;
   }
-  .digital .ampm { font-size: 0.4em; font-weight: 500; margin-left: 0.25em; color: var(--muted); }
-  .digital .sec { font-size: 0.45em; color: var(--muted); }
+  .digital .ampm { font-size: 0.4em; font-weight: 500; margin-left: 0.25em; opacity: 0.72; }
+  .digital .sec { font-size: 0.45em; opacity: 0.72; }
   .phase { font-size: 0.9rem; color: var(--muted); text-align: center; }
   .match { font-size: 0.78rem; color: var(--muted); text-align: center; min-height: 1.2em; font-variant-numeric: tabular-nums; }
   .progress { width: 100%; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; margin-top: 6px; }
@@ -275,18 +280,19 @@
   .ghead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .ghead .k { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
   .gsub { font-size: 0.72rem; color: var(--muted); }
-  .gwrap { position: relative; }
-  .gscroll { overflow-x: auto; overflow-y: hidden; border-radius: 10px; background: rgba(0,0,0,0.18); touch-action: pan-x; scrollbar-width: thin; cursor: crosshair; }
-  .gspacer { height: 170px; }
-  #graph { position: sticky; left: 0; display: block; height: 170px; }
+  /* The graph always spans exactly 24 hours across its full width. */
+  .gbox { border-radius: 10px; background: rgba(0,0,0,0.18); cursor: crosshair; touch-action: pan-y; overflow: hidden; }
+  #graph { display: block; width: 100%; height: 170px; }
+  /* Hover details sit in their own strip under the graph, never on top of it. */
   .gtip {
-    position: absolute; top: 26px; z-index: 2; pointer-events: none; max-width: 250px;
-    background: rgba(8,10,28,0.94); border: 1px solid var(--panel-border); border-radius: 8px; padding: 6px 9px;
-    font-size: 0.74rem; line-height: 1.4; font-variant-numeric: tabular-nums; white-space: nowrap;
+    min-height: calc(4 * 1.4em + 12px); padding: 6px 9px; border-radius: 8px;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--panel-border);
+    font-size: 0.74rem; line-height: 1.4; font-variant-numeric: tabular-nums;
   }
+  .gtip > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .gtip .tr { color: var(--real); font-weight: 600; }
   .gtip .td { color: var(--norm); font-weight: 600; }
-  .gtip .tm { color: var(--muted); }
+  .gtip .tm, .gtip .hint { color: var(--muted); }
   .gnote { font-size: 0.72rem; color: var(--muted); margin: 0; line-height: 1.4; }
   /* Legend tab */
   .lg { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 0.8rem; color: var(--muted); line-height: 1.4; }
@@ -348,8 +354,8 @@
       <g class="hands" id="setReal" style="color: var(--real)">
         <path class="h" id="rH"/><path class="m" id="rM"/><path class="s" id="rS"/><path class="ms" id="rMs"/>
       </g>
-      <!-- Ruler: a hand to drag; it reads whichever ring it is nearest. -->
-      <g id="ruler" style="display:none"><line x1="100" y1="100" x2="100" y2="8"/><circle cx="100" cy="16" r="4"/></g>
+      <!-- Ruler hands: hours, minutes, seconds, milliseconds; drag the knobs. -->
+      <g id="ruler" style="display:none"></g>
       <circle cx="100" cy="100" r="3" fill="var(--text)"/>
     </svg>
     </div>
@@ -387,12 +393,10 @@
         <span class="k">Daylight clock speed</span>
         <span class="gsub" id="gSub">× real time</span>
       </div>
-      <div class="gwrap" id="gWrap">
-        <div class="gscroll" id="gScroll"><div class="gspacer" id="gSpacer"><canvas id="graph" height="170"></canvas></div></div>
-        <div class="gtip" id="gTip" hidden></div>
-      </div>
-      <label class="dens">Scale<input type="range" id="gScale" min="0" max="6" step="1" value="4"><span id="gScaleOut"></span></label>
-      <p class="gnote">How fast the daylight clock runs compared with real time, from 6 hours ago to a day ahead. Hover or tap for details at this scale. The faint line is the other rate mode.</p>
+      <div class="gbox" id="gBox"><canvas id="graph" height="170"></canvas></div>
+      <div class="gtip" id="gTip" aria-live="polite"></div>
+      <label class="dens">Step<input type="range" id="gStep" min="1" max="15" step="1" value="5"><span id="gStepOut"></span></label>
+      <p class="gnote">How fast the daylight clock runs compared with real time, over 24 hours from 6 hours ago. Each step is the average speed over that many real minutes. Hover or tap for a step's details. The faint line is the other rate mode.</p>
     </section>
 
     <section class="panel tabpanel opts" id="pDisplay" role="tabpanel" data-title="Display">
@@ -408,7 +412,7 @@
         <button class="tog" type="button" id="togSec" aria-pressed="true"><span>Second hands</span></button>
         <button class="tog" type="button" id="togLines" aria-pressed="true"><span>Sun lines</span></button>
         <button class="tog" type="button" id="togMs" aria-pressed="false"><span>Milliseconds</span></button>
-        <button class="tog" type="button" id="togRuler" aria-pressed="false"><span>Ruler hand</span></button>
+        <button class="tog" type="button" id="togRuler" aria-pressed="false"><span>Ruler hands</span></button>
         <button class="tog" type="button" id="togArc" aria-pressed="true"><span>Progress arc</span></button>
         <button class="tog" type="button" id="togOther" aria-pressed="true"><span id="togOtherText">Daylight hands</span></button>
         <button class="tog wide-only" type="button" id="togDash" aria-pressed="true" style="grid-column: 1 / -1" title="On wide screens, spread every panel around the clock instead of using tabs"><span>Dashboard layout</span></button>
@@ -432,8 +436,8 @@
         <li><svg viewBox="0 0 26 12" aria-hidden="true"><line x1="2" y1="6" x2="24" y2="6" stroke="var(--text)" stroke-width="1.4"/></svg><span>Solid line: sunrise or sunset for the main hands. Dashed: for the other hands.</span></li>
         <li><svg viewBox="0 0 26 12" aria-hidden="true"><rect x="2" y="1" width="11" height="10" fill="rgba(140,190,255,0.35)"/><rect x="13" y="1" width="11" height="10" fill="rgba(0,0,20,0.6)"/></svg><span>Light and dark fill: sun up and sun down, by the main hands.</span></li>
         <li><svg viewBox="0 0 26 12" aria-hidden="true"><circle cx="13" cy="6" r="5" fill="none" stroke="var(--muted)" stroke-width="1"/><text x="13" y="6.4" font-size="6" fill="var(--muted)" text-anchor="middle" dominant-baseline="central">60</text></svg><span>Hour hands read the hour face. Minute and second hands read the 0 to 60 ring, millisecond hands the 0 to 1000 ring.</span></li>
-        <li><svg viewBox="0 0 26 12" aria-hidden="true"><line x1="2" y1="6" x2="20" y2="6" stroke="var(--text)" stroke-width="1" stroke-dasharray="2 1.5"/><circle cx="21" cy="6" r="3" fill="var(--text)"/></svg><span>Ruler hand: drag it. It snaps to the ring it's nearest (hours, minutes and seconds, or milliseconds) and says what that spot means.</span></li>
-        <li><svg viewBox="0 0 26 12" aria-hidden="true"><circle cx="13" cy="6" r="5" fill="none" stroke="var(--muted)" stroke-width="1"/><path d="M13 6V1.5" stroke="var(--text)" stroke-width="1.2"/></svg><span>12-hour dial: the face shows the 6 hours either side of the hour hand.</span></li>
+        <li><svg viewBox="0 0 26 12" aria-hidden="true"><line x1="2" y1="6" x2="20" y2="6" stroke="var(--text)" stroke-width="1" stroke-dasharray="2 1.5"/><circle cx="21" cy="6" r="3" fill="var(--text)"/></svg><span>Ruler hands: one each for hours (h), minutes (m), and, when those hands are on, seconds (s) and milliseconds. Drag a knob; each snaps to whole hours, minutes, seconds or 10 ms. Together they set a time on the main clock, and the line under the dial says when that is on both clocks.</span></li>
+        <li><svg viewBox="0 0 26 12" aria-hidden="true"><circle cx="13" cy="6" r="5" fill="none" stroke="var(--muted)" stroke-width="1"/><path d="M13 6V1.5" stroke="var(--text)" stroke-width="1.2"/></svg><span>12-hour dial: light runs clockwise from the sunrise line to the sunset line (or dark from sunset to sunrise, whichever is shorter). With daylight time as the main hands, the face shades the next 12 hours.</span></li>
       </ul>
       <p class="note">Sunrise is always 6:00 AM and sunset 6:00 PM; the hours between stretch or shrink to fit. With smooth daylight rate on, the clock speeds up and slows down gradually instead of snapping at sunrise and sunset, and still hits 6:00 at both. Real times are in the selected location's time zone. Tap the mini globe or the place name to change location.</p>
     </section>
@@ -482,9 +486,10 @@
     <h3>Changelog</h3>
     <div class="update-row">
       <button id="updateBtn" type="button">Check for update</button>
-      <span id="updateMsg">Version 5</span>
+      <span id="updateMsg">Version 6</span>
     </div>
     <ul class="log">
+      <li><b>6</b><span>2026-11-04: The 12-hour dial shades from the sunrise line to the sunset line; the hour hand is now the brightest of each set; the rate graph always fits exactly 24 hours, in steps of 1 to 15 minutes, with its details in a strip below it; times show in their clock's color; label density covers the 0 to 60 ring; separate ruler hands for hours, minutes, seconds and milliseconds.</span></li>
       <li><b>5</b><span>2026-11-03: Smooth daylight rate option; rate graph with hover details and scales; bigger clock; Details, Rate, Display and Legend tabs that collapse; dashboard layout on wide screens; ruler snaps to the nearest ring; black triangles where the clocks are furthest apart and a progress arc to the next triangle; main-hands switch and reset button in Display; Phosphor is the default theme; the 12-hour dial now shades and labels the 6 hours either side of the hand.</span></li>
       <li><b>4</b><span>2026-11-02: Real time is the main hand set by default (hour and minute hands, 24-hour dial, AM/PM labels); the digital clock and time tile follow the filled hands; the 12-hour dial shows the hand's next pass; millisecond hands and ring; draggable ruler hand; label density slider; tap the place name or mini globe to change location.</span></li>
       <li><b>3</b><span>2026-11-02: 12- or 24-hour dial, sunrise and sunset lines for both clocks, day/night fill follows the filled hands, inner hour ring when the other hands are hidden, nearest-city button, tap the mini globe to move, theme menu.</span></li>
@@ -702,26 +707,29 @@
   // dashboard layout on wide screens. "Reset display to defaults" restores these.
   const DEFAULTS = {
     use24: false, filled: 'real', theme: 2, dial12: false, showSec: false, showLines: true, showOther: true,
-    showMs: false, showRuler: false, rulerDeg: 135, rulerScale: 'h', density: 2, smooth: false, showArc: true, dash: true
+    showMs: false, showRuler: false, rulers: { h: 135, m: 0, s: 0, ms: 0 }, density: 2, smooth: false, showArc: true, dash: true
   };
-  let use24, filled, theme, dial12, showSec, showLines, showOther, showMs, showRuler, rulerDeg, rulerScale, density, smooth, showArc, dash;
+  let use24, filled, theme, dial12, showSec, showLines, showOther, showMs, showRuler, rulers, density, smooth, showArc, dash;
   function setDisplay(o) {
-    ({ use24, filled, theme, dial12, showSec, showLines, showOther, showMs, showRuler, rulerDeg, rulerScale, density, smooth, showArc, dash } = { ...DEFAULTS, ...o });
+    ({ use24, filled, theme, dial12, showSec, showLines, showOther, showMs, showRuler, rulers, density, smooth, showArc, dash } = { ...DEFAULTS, ...o });
+    rulers = { ...DEFAULTS.rulers, ...rulers };
   }
   function cleanPrefs(s) {
     const o = {};
     for (const k of Object.keys(DEFAULTS)) if (typeof DEFAULTS[k] === 'boolean' && typeof s[k] === 'boolean') o[k] = s[k];
     if (s.filled === 'norm' || s.filled === 'real') o.filled = s.filled;
     if (Number.isInteger(s.theme) && THEMES[s.theme]) o.theme = s.theme;
-    if (typeof s.rulerDeg === 'number' && isFinite(s.rulerDeg)) o.rulerDeg = s.rulerDeg;
-    if (['h', 'm', 'ms'].includes(s.rulerScale)) o.rulerScale = s.rulerScale;
+    if (s.rulers && typeof s.rulers === 'object') {
+      o.rulers = {};
+      for (const k of ['h', 'm', 's', 'ms']) if (typeof s.rulers[k] === 'number' && isFinite(s.rulers[k])) o.rulers[k] = s.rulers[k];
+    }
     if ([1, 2, 3, 4].includes(s.density)) o.density = s.density;
     return o;
   }
-  // Panel state: which tab is open, whether it is collapsed, graph scale.
-  let tab = 'details', collapsed = false, gScale = 4;
+  // Panel state: which tab is open, whether it is collapsed, graph step in minutes.
+  let tab = 'details', collapsed = false, gMin = 5;
   let loc = null;
-  const PREFS = 5;
+  const PREFS = 6;
   setDisplay({});
   try {
     const s = JSON.parse(localStorage.getItem('daylightClock') || '{}');
@@ -730,18 +738,19 @@
       // Where it came from: 'gps' follows the device; a picked place stays put.
       src: s.src === 'pick' ? 'pick' : 'gps'
     };
-    if (s.prefs === PREFS) setDisplay(cleanPrefs(s));
+    // Version 5 settings carry over as they are (the single ruler hand is replaced).
+    if (s.prefs === PREFS || s.prefs === 5) setDisplay(cleanPrefs(s));
     // Version 4 settings carry over, but the theme moves to the new default once.
     else if (s.prefs === 4) { const o = cleanPrefs(s); delete o.theme; setDisplay(o); }
     if (['details', 'graph', 'display', 'legend'].includes(s.tab)) tab = s.tab;
     collapsed = s.collapsed === true;
-    if (Number.isInteger(s.gScale) && s.gScale >= 0 && s.gScale <= 6) gScale = s.gScale;
+    if (Number.isInteger(s.gMin) && s.gMin >= 1 && s.gMin <= 15) gMin = s.gMin;
   } catch (e) {}
   function save() {
     try {
       localStorage.setItem('daylightClock', JSON.stringify({
         ...(loc || {}), prefs: PREFS, use24, filled, theme, dial12, showSec, showLines, showOther, showMs, showRuler,
-        rulerDeg, rulerScale, density, smooth, showArc, dash, tab, collapsed, gScale
+        rulers, density, smooth, showArc, dash, tab, collapsed, gMin
       }));
     } catch (e) {}
   }
@@ -760,8 +769,8 @@
   // just behind the hand are the recent past and those ahead are coming up.
   let vNow = 0, vHour = -1;
   // Label density 1-4: hours between hour labels, and 60-ring / ms-ring steps.
-  const DENS = { 1: [6, 15, 500], 2: [3, 5, 100], 3: [2, 5, 100], 4: [1, 5, 50] };
-  const DENS_NAME = { 1: 'Sparse', 2: 'Normal', 3: 'Dense', 4: 'Every hour' };
+  const DENS = { 1: [6, 15, 250], 2: [3, 5, 100], 3: [2, 2, 50], 4: [1, 1, 25] };
+  const DENS_NAME = { 1: 'Sparse', 2: 'Normal', 3: 'Dense', 4: 'Every mark' };
   function drawTicks() {
     ticks.innerHTML = '';
     const n = dial12 ? 12 : 24;
@@ -786,25 +795,31 @@
   function drawRings() {
     const [, mStep, msStep] = DENS[density];
     let a = '', b = '';
-    for (let i = 0; i < 60; i += mStep) { const [x, y] = pt(i * 6, 107.6); a += `<text x="${f2(x)}" y="${f2(y)}">${i}</text>`; }
-    for (let i = 0; i < 1000; i += msStep) { const [x, y] = pt(i * 0.36, 121.2); b += `<text x="${f2(x)}" y="${f2(y)}">${i}</text>`; }
+    for (let i = 0; i < 60; i += mStep) {
+      // Every label: the fives stay large and the rest shrink to fit between them.
+      const [x, y] = pt(i * 6, 107.6), small = mStep < 5 && i % 5;
+      a += `<text x="${f2(x)}" y="${f2(y)}"${small ? ` font-size="${mStep === 1 ? 4.4 : 5.4}" fill-opacity="0.8"` : ''}>${i}</text>`;
+    }
+    for (let i = 0; i < 1000; i += msStep) {
+      const [x, y] = pt(i * 0.36, 121.2), small = msStep < 100 && i % 100;
+      b += `<text x="${f2(x)}" y="${f2(y)}"${small ? ` font-size="${msStep === 25 ? 3.6 : 4.4}" fill-opacity="0.8"` : ''}>${i}</text>`;
+    }
     $('ringNums').innerHTML = a; $('msNums').innerHTML = b;
   }
   const hourLabel = h => use24 ? String(h) : `${h % 12 || 12}${h < 12 ? 'a' : 'p'}`;
-  // Outer labels. On the 12-hour dial each spot is labelled with the hour
-  // it stands for within 6 hours of the hand.
+  // Outer labels, in the main hands' color: they are that clock's hours.
   function drawNumbers() {
     nums.innerHTML = '';
     const step = DENS[density][0], list = [];
-    if (dial12) for (let i = 0; i < 12; i += step) { const lo = vNow - 6; list.push(mod(Math.round(lo + mod(i - lo, 12)), 24)); }
-    else for (let h = 0; h < 24; h += step) list.push(h);
+    // 12-hour dial: plain clock numbers, 12 at the top.
+    for (let h = 0; h < (dial12 ? 12 : 24); h += step) list.push(h);
     nums.setAttribute('font-size', !dial12 && step === 1 ? 7.8 : 10);
     for (const h of list) {
       const [x, y] = pt(hourDeg(h), 74.5);
       // Daylight time's sunrise and sunset hours stand out, in its hand color.
       const special = filled === 'norm' && (h === 6 || h === 18);
       nums.insertAdjacentHTML('beforeend',
-        `<text x="${f2(x)}" y="${f2(y)}"${special ? ' fill="var(--norm)" font-weight="600"' : ''}>${hourLabel(h)}</text>`);
+        `<text x="${f2(x)}" y="${f2(y)}"${special ? ' font-weight="700"' : ''}>${dial12 ? String(h || 12) : hourLabel(h)}</text>`);
     }
   }
   drawTicks();
@@ -852,7 +867,6 @@
     // The millisecond ring only shows with its hands; the dial grows to fit it.
     $('msRing').style.display = showMs ? '' : 'none';
     svg.setAttribute('viewBox', showMs ? '-26 -26 252 252' : '-13 -13 226 226');
-    if (!showMs && rulerScale === 'ms') rulerScale = 'm';
     $('ruler').style.display = showRuler ? '' : 'none';
     svg.classList.toggle('ruling', showRuler);
     $('otherK').textContent = nf ? 'Real time' : 'Daylight time';
@@ -873,6 +887,8 @@
       ['togMs', showMs], ['togRuler', showRuler], ['togSmooth', smooth], ['togArc', showArc], ['togDash', dash]])
       $(id).setAttribute('aria-pressed', String(on));
     $('densIn').value = density; $('densOut').textContent = DENS_NAME[density];
+    // Hour labels are the main clock's hours, so they take its color.
+    $('nums').style.fill = `color-mix(in srgb, ${nf ? 'var(--norm)' : 'var(--real)'} 78%, #fff)`;
     deco = null; inner = null; rateKey = null; drawNumbers(); drawRings(); placeRuler(); drawGraphSoon();
   }
   const setMain = f => () => { if (filled !== f) { filled = f; events = null; save(); applyHands(); } };
@@ -950,6 +966,8 @@
     if (m < 60) return `${m} min ${r} s`;
     return `${Math.floor(m / 60)} h ${m % 60} min`;
   }
+  // Wrap a time in the color of its clock: real time or daylight time.
+  const cR = x => `<span class="cr">${x}</span>`, cN = x => `<span class="cn">${x}</span>`;
   const fmtLoc = l => `${Math.abs(l.lat).toFixed(3)}°${l.lat >= 0 ? 'N' : 'S'}, ${Math.abs(l.lon).toFixed(3)}°${l.lon >= 0 ? 'E' : 'W'}`;
   const clockLabel = h => use24 ? `${String(h).padStart(2, '0')}:00` : `${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
   // A daylight-clock hour (0-24) as a time of day, optionally with seconds.
@@ -1054,11 +1072,27 @@
     realLen = Math.max(0, Math.min(24, realLen / 3600000));
     const realRise = realHourAt(isDay ? r.start : r.end);
     const day = filled === 'norm' ? { start: 6, len: 12 } : { start: realRise, len: realLen };
-    // 12-hour dial: the face holds the 6 hours either side of the hand, so
-    // the light right behind the hand is what just happened.
-    const from = dial12 ? vNow - 6 : 0, to = from + (dial12 ? 12 : 24);
-    const dayParts = clip(day.start, day.len, from, to);
-    const nightParts = clip(day.start + day.len, 24 - day.len, from, to);
+    // 12-hour dial: a day can't fit on it twice, so shade the shorter of day
+    // and night as one wedge between its sun lines (light from the sunrise
+    // line round to the sunset line, or dark from sunset round to sunrise)
+    // and give the rest of the face to the other. When they are exactly 12
+    // hours each (daylight time as the main hands), the face shows the next
+    // 12 hours from the hand instead.
+    let dayParts, nightParts;
+    const nStart = day.start + day.len, nLen = 24 - day.len;
+    if (!dial12) {
+      dayParts = clip(day.start, day.len, 0, 24);
+      nightParts = clip(nStart, nLen, 0, 24);
+    } else if (Math.abs(day.len - 12) < 0.02) {
+      dayParts = clip(day.start, day.len, vNow, vNow + 12);
+      nightParts = clip(nStart, nLen, vNow, vNow + 12);
+    } else if (day.len < 12) {
+      dayParts = [[day.start, nStart]];
+      nightParts = [[nStart, day.start + 12]];
+    } else {
+      nightParts = [[nStart, nStart + nLen]];
+      dayParts = [[nStart + nLen, nStart + 12]];
+    }
     $('dayFill').setAttribute('d', dayParts.map(p => wedge(...p)).join(''));
     $('nightFill').setAttribute('d', nightParts.map(p => wedge(...p)).join(''));
 
@@ -1120,20 +1154,43 @@
       }).join('');
   }
 
-  // ---------- Ruler hand ----------
-  // Drag it anywhere on the face. It snaps to the ring the pointer is nearest:
-  // the hour face (to the minute), the 0-60 ring (whole minutes/seconds) or
-  // the millisecond ring (10 ms). The line under the dial says what the spot
-  // means, and the rate graph marks the moment.
-  const RULER_R = { h: [91, 83.5], m: [104, 101], ms: [119, 116.5] };
-  let rulerShownAt = 0, rulerT = null;
+  // ---------- Ruler hands ----------
+  // One ruler hand per unit: hours on the hour face, minutes and seconds on
+  // the 0-60 ring, milliseconds on the 0-1000 ring (seconds and milliseconds
+  // only while those clock hands are on). Each snaps to whole units. Read
+  // together they name a time on the main clock, from 6 hours ago to 18 hours
+  // ahead (on the 12-hour dial, within 6 hours of the hand). The line under
+  // the dial gives that moment on both clocks, and the rate graph marks it.
+  // [line end, knob radius, knob size, line width, letter]
+  const RULERS = { h: [66, 58, 4.4, 1.3, 'h'], m: [95, 88, 3.8, 0.9, 'm'], s: [102, 99, 3, 0.6, 's'], ms: [118, 114.5, 2.6, 0.5, ''] };
+  const rulerOn = k => k === 'h' || k === 'm' || (k === 's' && showSec) || (k === 'ms' && showMs);
+  const rulerStep = k => k === 'h' ? degPerHour() : k === 'ms' ? 3.6 : 6;
+  let rulerShownAt = 0, rulerT = null, rulerDrag = null;
   function placeRuler() {
-    const [len, knob] = RULER_R[rulerScale] || RULER_R.h;
-    const l = $('ruler').firstElementChild, c = $('ruler').lastElementChild;
-    l.setAttribute('y2', 100 - len); c.setAttribute('cy', 100 - knob);
-    $('ruler').setAttribute('transform', `rotate(${f2(rulerDeg)} 100 100)`);
+    $('ruler').innerHTML = Object.entries(RULERS).filter(([k]) => rulerOn(k)).map(([k, [len, kr, size, w, letter]]) =>
+      `<g class="rh${rulerDrag === k ? ' drag' : ''}" transform="rotate(${f2(Math.round(rulers[k] / rulerStep(k)) * rulerStep(k))} 100 100)">` +
+      `<line x1="100" y1="100" x2="100" y2="${100 - len}" stroke-width="${w}"/>` +
+      `<circle cx="100" cy="${100 - kr}" r="${size}"/>` +
+      (letter ? `<text x="100" y="${100 - kr + 0.2}" font-size="${size * 1.25}" text-anchor="middle" dominant-baseline="central">${letter}</text>` : '') +
+      `</g>`).join('');
     rulerShownAt = 0;
   }
+  // The real time the rulers point at.
+  function rulerTime(now) {
+    const H = dial12 ? mod(Math.round(rulers.h / 30), 12) : mod(Math.round(rulers.h / 15) + 12, 24);
+    const M = mod(Math.round(rulers.m / 6), 60), S = showSec ? mod(Math.round(rulers.s / 6), 60) : 0;
+    const MS = showMs ? mod(Math.round(rulers.ms / 3.6) * 10, 1000) : 0;
+    const pos = H + M / 60 + S / 3600 + MS / 3600000;
+    const dh = dial12 ? mod(pos - vNow + 6, 12) - 6 : mod(pos - vNow + 6, 24) - 6;
+    return filledTimeAfter(now, dh);
+  }
+  // A time of day given in ms since midnight, to the second or millisecond.
+  const fmtClockMs = (msDay, sec, msOn) => {
+    const v = mod(Math.round(msDay), DAY);
+    let txt = fmtHour(v / 3600000, sec || msOn);
+    if (msOn) txt = txt.replace(/(:\d\d)( [AP]M)?$/, (_, a, b) => `${a}.${String(v % 1000).padStart(3, '0')}${b || ''}`);
+    return txt;
+  };
   function sunWord(t) {
     const r = compute(t, loc.lat, loc.lon);
     if (!r) return '';
@@ -1142,96 +1199,94 @@
       return (Math.abs(t - r.start) < 120000) === (r.phase === 'day') ? '☀ sunrise' : '☾ sunset';
     return r.phase === 'day' ? '☀ sun up' : '☾ sun down';
   }
-  const whenText = (t, now) => Math.abs(t - now) < 60000 ? 'now' : t > now ? `in ${fmtDur(t - now)}` : `${fmtDur(now - t)} ago`;
+  const whenText = (t, now) => Math.abs(t - now) < 1000 ? 'now' : t > now ? `in ${fmtDurS(t - now)}` : `${fmtDurS(now - t)} ago`;
+  // Like fmtDur, but with seconds when under an hour away.
+  function fmtDurS(ms) {
+    const s = Math.round(Math.abs(ms) / 1000);
+    if (s >= 3600) return fmtDur(ms);
+    return s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`;
+  }
   function rulerInfo(now) {
     rulerShownAt = now;
     const out = $('rulerInfo');
     if (!showRuler || !loc) { out.textContent = ''; rulerT = null; return; }
-    const deg = mod(rulerDeg, 360), nf = filled === 'norm';
-    const both = t => {
-      const real = `${fmtReal(t)} real`, day = `${fmtHour(normAt(t))} daylight`;
-      return nf ? `${day} = ${real}` : `${real} = ${day}`;
-    };
-    if (rulerScale === 'ms') {
-      const v = Math.round(deg / 0.36) % 1000;
-      rulerT = now;
-      out.textContent = nf
-        ? `Ruler · ${v} ms · one daylight second lasts ${(1000 / speedAt(now)).toFixed(0)} real ms right now`
-        : `Ruler · ${v} ms · the millisecond hand passes it once every real second`;
-      return;
-    }
-    if (rulerScale === 'm') {
-      const v = Math.round(deg / 6) % 60;
-      const F = nf ? normAt(now) : realHourAt(now), fm = mod(F * 60, 60), fs = mod(F * 3600, 60);
-      const tMin = filledTimeAfter(now, mod(v - fm, 60) / 60), tSec = filledTimeAfter(now, mod(v - fs, 60) / 3600);
-      rulerT = tMin;
-      const secs = Math.max(0, (tSec - now) / 1000);
-      out.textContent = `Ruler · :${pad(v)} · minute hand there at ${both(tMin)} (${whenText(tMin, now)}) · second hand in ${secs < 10 ? secs.toFixed(1) : Math.round(secs)} s`;
-      return;
-    }
-    const pos = dial12 ? deg / 30 : mod(deg / 15 + 12, 24);
-    const dh = dial12 ? mod(pos - vNow + 6, 12) - 6 : mod(pos - vNow, 24);
-    const t = filledTimeAfter(now, dh);
+    const t = rulerTime(now), nf = filled === 'norm';
     rulerT = t;
-    out.textContent = `Ruler · ${both(t)} · ${whenText(t, now)} · ${sunWord(t)}`;
+    const real = cR(`${fmtClockMs(t + zoneOffset(t), showSec, showMs)} real`);
+    const day = cN(`${fmtClockMs(normAt(t) * 3600000, showSec, showMs)} daylight`);
+    out.innerHTML = `Ruler · ${nf ? day + ' = ' + real : real + ' = ' + day} · ${whenText(t, now)} · ${sunWord(t)}`;
   }
   (() => {
     const svg = $('dial');
-    let dragging = false;
-    const aim = e => {
+    const where = e => {
       const m = svg.getScreenCTM();
-      if (!m) return;
+      if (!m) return null;
       const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
-      const dx = p.x - 100, dy = 100 - p.y, rad = Math.hypot(dx, dy);
-      rulerScale = rad < 94 ? 'h' : showMs && rad >= 110.5 ? 'ms' : 'm';
-      const step = rulerScale === 'h' ? degPerHour() / 60 : rulerScale === 'm' ? 6 : 3.6;
-      rulerDeg = Math.round(Math.atan2(dx, dy) / RAD / step) * step;
+      return { dx: p.x - 100, dy: 100 - p.y };
+    };
+    // Which ruler a press grabs: the nearest knob, or else the one whose ring
+    // the press is on.
+    const pick = ({ dx, dy }) => {
+      let best = null, bd = 14;
+      for (const [k, [, kr]] of Object.entries(RULERS)) {
+        if (!rulerOn(k)) continue;
+        const a = rulers[k] * RAD, d = Math.hypot(dx - kr * Math.sin(a), dy - kr * Math.cos(a));
+        if (d < bd) { bd = d; best = k; }
+      }
+      if (best) return best;
+      const rad = Math.hypot(dx, dy);
+      return rad < 74 ? 'h' : rad < 94 || !showSec && !showMs ? 'm' : showMs && rad >= 109 ? 'ms' : showSec ? 's' : 'm';
+    };
+    const aim = p => {
+      const step = rulerStep(rulerDrag);
+      rulers[rulerDrag] = Math.round(Math.atan2(p.dx, p.dy) / RAD / step) * step;
       placeRuler(); rulerInfo(Date.now()); drawGraphSoon();
     };
     svg.addEventListener('pointerdown', e => {
       if (!showRuler) return;
-      dragging = true; svg.setPointerCapture(e.pointerId); aim(e); e.preventDefault();
+      const p = where(e);
+      if (!p) return;
+      rulerDrag = pick(p); svg.setPointerCapture(e.pointerId); aim(p); e.preventDefault();
     });
-    svg.addEventListener('pointermove', e => { if (dragging) aim(e); });
-    const stop = () => { if (dragging) { dragging = false; save(); } };
+    svg.addEventListener('pointermove', e => { if (rulerDrag) { const p = where(e); if (p) aim(p); } });
+    const stop = () => { if (rulerDrag) { rulerDrag = null; placeRuler(); save(); } };
     svg.addEventListener('pointerup', stop);
     svg.addEventListener('pointercancel', stop);
   })();
 
   // ---------- Rate graph ----------
-  // How fast the daylight clock runs (daylight hours per real hour) from
-  // 6 hours before the current hour to 25 hours after it, at a chosen number
-  // of real seconds per pixel. The canvas is only as wide as the view and
-  // redraws as the strip scrolls under it.
-  const GSCALES = [15, 30, 60, 120, 300, 600, 900];
-  const GSCALE_NAME = s => s < 60 ? `1 px = ${s} s` : `1 px = ${s / 60} min`;
-  const G = { key: null, scrolled: false, hover: null, drawQueued: false, drawnAt: 0 };
+  // How fast the daylight clock runs (daylight hours per real hour) over the
+  // 24 hours that start 6 hours before the current hour. Each step averages
+  // the speed over 1 to 15 real minutes. The whole 24 hours always fills the
+  // graph's width, stretched or squeezed to fit; there's nothing to scroll.
+  const GSPAN = DAY, HR = 3600000;
+  const G = { key: null, hover: null, drawQueued: false, drawnAt: 0 };
   const gcv = $('graph'), gctx2 = gcv.getContext('2d');
+  const stepName = m => `${m} min`;
   function graphData(now) {
-    const spp = GSCALES[gScale], HR = 3600000;
-    const hf = now - mod(now + zoneOffset(now), HR), w0 = hf - 6 * HR, n = Math.round(31 * HR / (spp * 1000));
-    const key = [w0, spp, smooth, loc.lat, loc.lon, filled, use24].join();
+    const step = gMin * 60000;
+    const w0 = now - mod(now + zoneOffset(now), HR) - 6 * HR, n = Math.ceil(GSPAN / step);
+    const key = [w0, gMin, smooth, loc.lat, loc.lon, filled, use24].join();
     if (G.key === key) return G;
-    const H = new Float64Array(n + 1), Ho = new Float64Array(n + 1);
-    for (let i = 0; i <= n; i++) { const t = w0 + i * spp * 1000; H[i] = dayHourAt(t, smooth); Ho[i] = dayHourAt(t, !smooth); }
-    const k = 3600 / spp, S = new Float32Array(n), So = new Float32Array(n);
+    // Step edges; the last step is shorter when the step doesn't divide 24 hours.
+    const T = new Float64Array(n + 1), H = new Float64Array(n + 1), Ho = new Float64Array(n + 1);
+    for (let i = 0; i <= n; i++) { T[i] = Math.min(w0 + i * step, w0 + GSPAN); H[i] = dayHourAt(T[i], smooth); Ho[i] = dayHourAt(T[i], !smooth); }
+    const S = new Float32Array(n), So = new Float32Array(n);
     let top = 1;
-    for (let i = 0; i < n; i++) { S[i] = (H[i + 1] - H[i]) * k; So[i] = (Ho[i + 1] - Ho[i]) * k; if (S[i] <= 4) top = Math.max(top, S[i]); if (So[i] <= 4) top = Math.max(top, So[i]); }
-    // Jumps (polar day or night) go off the top; they don't set the scale.
+    for (let i = 0; i < n; i++) {
+      const k = HR / (T[i + 1] - T[i]);
+      S[i] = (H[i + 1] - H[i]) * k; So[i] = (Ho[i + 1] - Ho[i]) * k;
+      // Jumps (polar day or night) go off the top; they don't set the scale.
+      if (S[i] <= 4) top = Math.max(top, S[i]);
+      if (So[i] <= 4) top = Math.max(top, So[i]);
+    }
     // Sun-up spans, from the knots (a 6:00 knot is a sunrise).
     const L = knotsAt(now), sun = [];
     for (let i = 0; i + 1 < L.length; i++) if (mod(L[i].h, 24) === 6) sun.push([L[i].t, L[i + 1].t]);
     // Daylight-clock hour marks along the top.
     const dmarks = [];
     for (let h = Math.ceil(H[0]); h <= H[n]; h++) dmarks.push({ h, t: timeAtDayHour(h, smooth, now) });
-    Object.assign(G, { key, w0, n, spp, H, Ho, S, So, sun, dmarks, yMax: Math.max(1.5, Math.ceil(top * 1.15 * 4) / 4) });
-    $('gSpacer').style.width = n + 'px';
-    if (!G.scrolled) requestAnimationFrame(() => {
-      const sc = $('gScroll');
-      if (!sc.clientWidth) return;
-      sc.scrollLeft = Math.max(0, (now - w0) / (spp * 1000) - sc.clientWidth * 0.2);
-      G.scrolled = true;
-    });
+    Object.assign(G, { key, w0, n, T, H, Ho, S, So, sun, dmarks, yMax: Math.max(1.5, Math.ceil(top * 1.15 * 4) / 4) });
     return G;
   }
   function drawGraphSoon() {
@@ -1240,24 +1295,27 @@
     requestAnimationFrame(() => { G.drawQueued = false; drawGraph(); });
   }
   function drawGraph() {
-    const sc = $('gScroll'), W = sc.clientWidth, Hh = 170;
+    const W = $('gBox').clientWidth, Hh = 170;
     if (!loc || !W || !cache) return;
     const now = Date.now(), g = graphData(now);
     G.drawnAt = now;
     const dpr2 = Math.min(2, window.devicePixelRatio || 1);
     if (gcv.width !== Math.round(W * dpr2)) { gcv.width = Math.round(W * dpr2); gcv.height = Math.round(Hh * dpr2); }
-    gcv.style.width = W + 'px';
-    const c = gctx2, sl = sc.scrollLeft, ms = g.spp * 1000;
+    const c = gctx2;
     c.setTransform(dpr2, 0, 0, dpr2, 0, 0);
     c.clearRect(0, 0, W, Hh);
     const css = getComputedStyle(document.documentElement);
     const colN = css.getPropertyValue('--norm').trim() || '#3dff8a', colR = css.getPropertyValue('--real').trim() || '#ff4fd8';
-    const top = 22, bot = Hh - 20, X = t => (t - g.w0) / ms - sl, Y = v => bot - Math.min(v, g.yMax) / g.yMax * (bot - top);
-    const i0 = Math.max(0, Math.floor(sl)), i1 = Math.min(g.n, Math.ceil(sl + W));
+    const top = 22, bot = Hh - 20, X = t => (t - g.w0) / GSPAN * W, Y = v => bot - Math.min(v, g.yMax) / g.yMax * (bot - top);
     // Sun up / down bands.
     c.fillStyle = 'rgba(0,0,30,0.35)'; c.fillRect(0, top, W, bot - top);
     c.fillStyle = 'rgba(140,190,255,0.16)';
     for (const [a, b] of g.sun) { const xa = Math.max(0, X(a)), xb = Math.min(W, X(b)); if (xb > xa) c.fillRect(xa, top, xb - xa, bot - top); }
+    // The hovered step.
+    if (G.hover !== null) {
+      const xa = X(g.T[G.hover]), xb = X(g.T[G.hover + 1]);
+      c.fillStyle = 'rgba(255,255,255,0.16)'; c.fillRect(xa, top, Math.max(1, xb - xa), bot - top);
+    }
     // Speed grid lines.
     c.font = '10px system-ui, sans-serif'; c.textBaseline = 'middle';
     const ystep = g.yMax > 3 ? 1 : 0.5;
@@ -1267,30 +1325,32 @@
       c.beginPath(); c.moveTo(0, Y(v) + 0.5); c.lineTo(W, Y(v) + 0.5); c.stroke();
     }
     c.setLineDash([]);
-    // The other rate mode, faint; then this one, filled underneath.
-    const curve = (A, i, j) => { c.beginPath(); for (let k = i; k < j; k++) { const x = k - sl + 0.5, y = Y(A[k]); k === i ? c.moveTo(x, y) : c.lineTo(x, y); } };
-    curve(g.So, i0, i1); c.strokeStyle = 'rgba(255,255,255,0.35)'; c.setLineDash([3, 3]); c.lineWidth = 1.2; c.stroke(); c.setLineDash([]);
-    curve(g.S, i0, i1); c.lineTo(i1 - sl, bot); c.lineTo(i0 - sl, bot); c.closePath();
+    // Each step is a flat run at its average speed. The other rate mode is
+    // faint; this one is filled underneath.
+    const stairs = A => {
+      c.beginPath();
+      for (let k = 0; k < g.n; k++) { const y = Y(A[k]); k ? c.lineTo(X(g.T[k]), y) : c.moveTo(0, y); c.lineTo(X(g.T[k + 1]), y); }
+    };
+    stairs(g.So); c.strokeStyle = 'rgba(255,255,255,0.35)'; c.setLineDash([3, 3]); c.lineWidth = 1.2; c.stroke(); c.setLineDash([]);
+    stairs(g.S); c.lineTo(W, bot); c.lineTo(0, bot); c.closePath();
     c.globalAlpha = 0.16; c.fillStyle = colN; c.fill(); c.globalAlpha = 1;
-    curve(g.S, i0, i1); c.strokeStyle = colN; c.lineWidth = 2; c.stroke();
+    stairs(g.S); c.strokeStyle = colN; c.lineWidth = 2; c.lineJoin = 'round'; c.stroke();
     // Real-time hour marks along the bottom, daylight-clock hours along the top.
-    const pxPerHour = 3600 / g.spp;
-    const realEvery = pxPerHour >= 200 ? 0.25 : pxPerHour >= 100 ? 0.5 : pxPerHour >= 50 ? 1 : pxPerHour >= 25 ? 2 : pxPerHour >= 10 ? 3 : 6;
+    const pxPerHour = W / 24;
+    const realEvery = pxPerHour >= 50 ? 1 : pxPerHour >= 25 ? 2 : pxPerHour >= 12 ? 3 : 6;
     c.textAlign = 'center'; c.fillStyle = colR;
-    for (let t = g.w0; t <= g.w0 + g.n * ms; t += realEvery * 3600000) {
-      const x = X(t);
-      if (x < -30 || x > W + 30) continue;
-      c.fillRect(Math.round(x), bot, 1, 4);
-      const hr = realHourAt(t), lab = realEvery < 1 ? fmtHour(hr).replace(/ (AM|PM)$/, m => m === ' AM' ? 'a' : 'p') : hourLabel(Math.round(hr) % 24);
-      c.fillText(lab, x, bot + 11);
+    for (let t = g.w0; t <= g.w0 + GSPAN; t += HR) {
+      const x = X(t), hr = Math.round(realHourAt(t)) % 24;
+      c.fillRect(Math.min(W - 1, Math.round(x)), bot, 1, hr % realEvery ? 2 : 4);
+      if (hr % realEvery === 0 && x > 8 && x < W - 8) c.fillText(hourLabel(hr), x, bot + 11);
     }
     c.fillStyle = colN;
-    const dayEvery = realEvery < 1 ? 1 : realEvery;
     for (const m of g.dmarks) {
       const x = X(m.t);
-      if (x < -30 || x > W + 30) continue;
-      c.fillRect(Math.round(x), top - 4, 1, 4);
-      if (mod(m.h, dayEvery) === 0) c.fillText(hourLabel(mod(m.h, 24)), x, top - 11);
+      if (x < 0 || x > W) continue;
+      const lab = mod(m.h, realEvery) === 0;
+      c.fillRect(Math.round(x), top - (lab ? 4 : 2), 1, lab ? 4 : 2);
+      if (lab && x > 8 && x < W - 8) c.fillText(hourLabel(mod(m.h, 24)), x, top - 11);
     }
     // Triangles: where the clocks agree (white) and are furthest apart (black).
     if (events) for (const ev of events.list) {
@@ -1300,7 +1360,7 @@
       c.fillStyle = ev.type === 'agree' ? '#f4f1ea' : '#000'; c.fill();
       c.strokeStyle = ev.type === 'agree' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.85)'; c.lineWidth = 1; c.stroke();
     }
-    // Now, the ruler's moment, and the hovered pixel.
+    // Now, and the rulers' moment.
     const vline = (x, color, dash, w) => { c.strokeStyle = color; c.setLineDash(dash); c.lineWidth = w; c.beginPath(); c.moveTo(Math.round(x) + 0.5, top); c.lineTo(Math.round(x) + 0.5, bot); c.stroke(); c.setLineDash([]); };
     vline(X(now), 'rgba(255,255,255,0.9)', [], 1.5);
     c.fillStyle = '#f4f1ea'; c.textAlign = 'left'; c.fillText('now', X(now) + 4, top + 8);
@@ -1311,49 +1371,45 @@
         c.beginPath(); c.arc(x, top + 3, 3.5, 0, 2 * Math.PI); c.fillStyle = '#f4f1ea'; c.fill();
       }
     }
-    if (G.hover !== null) vline(G.hover - sl + 0.5, 'rgba(255,255,255,0.55)', [2, 2], 1);
-    // Speed axis labels stay at the left edge.
+    // Speed axis labels at the left edge.
     c.textAlign = 'left'; c.fillStyle = 'rgba(244,241,234,0.75)';
     for (let v = ystep; v < g.yMax; v += ystep) c.fillText(`${v}×`, 3, Y(v) - 6);
     $('gSub').textContent = `${smooth ? 'Smooth' : 'Snapped'} rate · daylight hours per real hour`;
   }
-  // Hover (or tap) for details over the span one pixel covers at this scale.
+  // Hover (or tap) a step for its details, shown in the strip under the graph.
+  const TIP_HINT = '<div class="hint">Hover or tap the graph for a step\'s details.</div>';
   function graphTip(e) {
     if (!loc || !G.key) return;
-    const sc = $('gScroll'), rect = sc.getBoundingClientRect(), xIn = e.clientX - rect.left;
-    const i = Math.floor(xIn + sc.scrollLeft);
-    if (i < 0 || i >= G.n || xIn < 0 || xIn > rect.width) return hideTip();
+    const rect = $('gBox').getBoundingClientRect(), x = e.clientX - rect.left;
+    if (x < 0 || x > rect.width) return hideTip();
+    const i = Math.max(0, Math.min(G.n - 1, Math.floor(x / rect.width * GSPAN / (gMin * 60000))));
     G.hover = i;
-    const ta = G.w0 + i * G.spp * 1000, tb = ta + G.spp * 1000, sec = G.spp < 60;
-    const fr = sec ? fmtRealSec : fmtReal, sp = G.S[i], spo = G.So[i];
-    const up = G.sun.some(([a, b]) => ta >= a && ta < b);
-    const tip = $('gTip');
-    tip.innerHTML = '';
-    const line = (txt, cls) => { const d = document.createElement('div'); d.textContent = txt; if (cls) d.className = cls; tip.appendChild(d); };
-    line(`${fr(ta)} – ${fr(tb)} real`, 'tr');
-    line(`${fmtHour(G.H[i], sec)} – ${fmtHour(G.H[i + 1], sec)} daylight`, 'td');
-    line(`${sp.toFixed(3)}× real speed · 1 daylight hour = ${sp > 0.01 ? fmtRate(3600000 / sp) : '—'}`);
-    line(`${smooth ? 'Snapped' : 'Smooth'} rate here: ${spo.toFixed(3)}×`, 'tm');
-    line(up ? '☀ Sun up' : '☾ Sun down', 'tm');
-    tip.hidden = false;
-    const wrapW = $('gWrap').clientWidth, tw = tip.offsetWidth;
-    tip.style.left = Math.max(0, Math.min(wrapW - tw, xIn + (xIn > wrapW / 2 ? -tw - 12 : 12))) + 'px';
+    showTip();
     drawGraphSoon();
   }
-  function hideTip() { $('gTip').hidden = true; if (G.hover !== null) { G.hover = null; drawGraphSoon(); } }
-  $('gScroll').addEventListener('scroll', () => { G.scrolled = true; drawGraphSoon(); if (G.hover !== null) hideTip(); }, { passive: true });
-  $('gScroll').addEventListener('pointermove', graphTip);
-  $('gScroll').addEventListener('pointerdown', graphTip);
-  $('gScroll').addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') hideTip(); });
-  $('gScale').oninput = () => {
-    const sc = $('gScroll'), oldSpp = GSCALES[gScale], mid = sc.scrollLeft + sc.clientWidth / 2;
-    gScale = +$('gScale').value;
-    $('gScaleOut').textContent = GSCALE_NAME(GSCALES[gScale]);
+  function showTip() {
+    const i = G.hover, tip = $('gTip');
+    if (i === null || !G.key || i >= G.n) { tip.innerHTML = TIP_HINT; return; }
+    const ta = G.T[i], tb = G.T[i + 1], sp = G.S[i], spo = G.So[i], sec = gMin < 5;
+    const up = G.sun.some(([a, b]) => (ta + tb) / 2 >= a && (ta + tb) / 2 < b);
+    tip.innerHTML = '';
+    const line = (txt, cls) => { const d = document.createElement('div'); d.textContent = txt; if (cls) d.className = cls; tip.appendChild(d); };
+    line(`${fmtReal(ta)} – ${fmtReal(tb)} real (${stepName(Math.round((tb - ta) / 60000))})`, 'tr');
+    line(`${fmtHour(G.H[i], sec)} – ${fmtHour(G.H[i + 1], sec)} daylight`, 'td');
+    line(`${sp.toFixed(3)}× real speed · 1 daylight hour = ${sp > 0.01 ? fmtRate(HR / sp) : '—'}`);
+    line(`${up ? '☀ Sun up' : '☾ Sun down'} · ${smooth ? 'snapped' : 'smooth'} rate here ${spo.toFixed(3)}×`, 'tm');
+  }
+  function hideTip() { $('gTip').innerHTML = TIP_HINT; if (G.hover !== null) { G.hover = null; drawGraphSoon(); } }
+  $('gBox').addEventListener('pointermove', graphTip);
+  $('gBox').addEventListener('pointerdown', graphTip);
+  $('gBox').addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') hideTip(); });
+  $('gStep').oninput = () => {
+    gMin = +$('gStep').value;
+    $('gStepOut').textContent = stepName(gMin);
     G.key = null; hideTip();
-    if (loc) { graphData(Date.now()); sc.scrollLeft = mid * oldSpp / GSCALES[gScale] - sc.clientWidth / 2; }
     save(); drawGraphSoon();
   };
-  $('gScale').value = gScale; $('gScaleOut').textContent = GSCALE_NAME(GSCALES[gScale]);
+  $('gStep').value = gMin; $('gStepOut').textContent = stepName(gMin); $('gTip').innerHTML = TIP_HINT;
   window.addEventListener('resize', drawGraphSoon);
 
   // ---------- Tabs, collapsing and the dashboard layout ----------
@@ -1372,7 +1428,6 @@
     $('side').classList.toggle('collapsed', collapsed);
     $('collapseBtn').textContent = collapsed ? '▸' : '▾';
     $('collapseBtn').setAttribute('aria-expanded', String(!collapsed));
-    G.scrolled = G.scrolled && $('gScroll').clientWidth > 0;
     drawGraphSoon();
   }
   for (const b of document.querySelectorAll('.tab')) b.onclick = () => {
@@ -1387,6 +1442,8 @@
   applyLayout();
 
   // ---------- Render loop ----------
+  // Only touch the DOM when a line's text actually changes.
+  const setHTML = (id, html) => { const el = $(id); if (el._h !== html) { el._h = html; el.innerHTML = html; } };
   function frame() {
     requestAnimationFrame(frame);
     if (!loc) return;
@@ -1414,6 +1471,7 @@
       return { Hh, m, ss, text: use24 ? `${pad(Hh)}:${pad(m)}${sec ? ':' + pad(ss) : ''}` : `${Hh % 12 || 12}:${pad(m)}${sec ? ':' + pad(ss) : ''} ${Hh < 12 ? 'AM' : 'PM'}` };
     };
     const vh = filled === 'norm' ? { Hh: H, m: M, ss: S } : clockText(rh);
+    $('digital').style.color = filled === 'norm' ? 'var(--norm)' : 'var(--real)';
     $('digital').innerHTML = use24
       ? `${pad(vh.Hh)}:${pad(vh.m)}<span class="sec">:${pad(vh.ss)}</span>`
       : `${vh.Hh % 12 || 12}:${pad(vh.m)}<span class="sec">:${pad(vh.ss)}</span><span class="ampm">${vh.Hh < 12 ? 'AM' : 'PM'}</span>`;
@@ -1425,7 +1483,7 @@
     if (!deco || deco.key !== decoKey()) drawDeco(now, r);
     if (!inner || inner.key !== innerKey(now)) drawInner(now);
     drawArc(now);
-    if (now - rulerShownAt > (rulerScale === 'm' ? 250 : 5000)) rulerInfo(now);
+    if (now - rulerShownAt > 250) rulerInfo(now);
     if (now - G.drawnAt > 15000) drawGraphSoon();
 
     // Sky
@@ -1440,24 +1498,27 @@
     $('bar').style.background = isDay ? 'var(--sun)' : 'var(--moon)';
     const nextA = events.list.find(ev => ev.type === 'agree' && ev.t > now);
     const nextB = events.list.find(ev => ev.type === 'apart' && ev.t > now);
-    $('match').textContent = nextA
-      ? `▲ The clocks agree next at ${fmtReal(nextA.t)}, in ${fmtDur(nextA.t - now)}`
-      : '▲ The clocks don\'t agree at any point in the next day';
-    $('apart').textContent = nextB ? `▼ Furthest apart next at ${fmtReal(nextB.t)}, in ${fmtDur(nextB.t - now)}: ${apartText(nextB)}` : '';
+    // Both clocks read the same at a match, so give it in both colors' order
+    // of the main hands; furthest apart gives each clock's time.
+    const atBoth = t => filled === 'norm' ? `${cN(fmtHour(normAt(t)))} daylight / ${cR(fmtReal(t))} real` : `${cR(fmtReal(t))} real / ${cN(fmtHour(normAt(t)))} daylight`;
+    setHTML('match', nextA
+      ? `▲ The clocks agree next at ${filled === 'norm' ? cN(fmtHour(normAt(nextA.t))) : cR(fmtReal(nextA.t))}, in ${fmtDur(nextA.t - now)}`
+      : '▲ The clocks don\'t agree at any point in the next day');
+    setHTML('apart', nextB ? `▼ Furthest apart next at ${atBoth(nextB.t)}, in ${fmtDur(nextB.t - now)}: ${apartText(nextB)}` : '');
 
     // Cells
     if (filled === 'norm') {
-      $('realTime').textContent = fmtRealSec(now);
+      $('realTime').innerHTML = cR(fmtRealSec(now));
       $('realDate').textContent = `${fmtDate(now)} · ${zoneAbbr(now)}`;
     } else {
-      $('realTime').textContent = clockText(dh, true).text;
+      $('realTime').innerHTML = cN(clockText(dh, true).text);
       $('realDate').textContent = `${fmtDate(now)} · by the sun`;
     }
     const rise = isDay ? r.start : r.end, set = isDay ? r.end : r.start;
-    $('riseLabel').textContent = `Sunrise · ${clockLabel(6)}`;
-    $('setLabel').textContent = `Sunset · ${clockLabel(18)}`;
-    $('riseTime').textContent = fmtReal(rise);
-    $('setTime').textContent = fmtReal(set);
+    setHTML('riseLabel', `Sunrise · ${cN(clockLabel(6))}`);
+    setHTML('setLabel', `Sunset · ${cN(clockLabel(18))}`);
+    setHTML('riseTime', cR(fmtReal(rise)));
+    setHTML('setTime', cR(fmtReal(set)));
     $('riseWhen').textContent = rise > now ? `in ${fmtDur(rise - now)}` : `${fmtDur(now - rise)} ago`;
     $('setWhen').textContent = set > now ? `in ${fmtDur(set - now)}` : `${fmtDur(now - set)} ago`;
 
@@ -1473,7 +1534,7 @@
       if (rateKey !== key) {
         rateKey = key;
         const t0 = timeAtDayHour(N, true, now), t1 = timeAtDayHour(N + 1, true, now);
-        $('rateK').textContent = `Hour ${clockLabel(mod(N, 24))} to ${clockLabel(mod(N + 1, 24))} takes`;
+        $('rateK').innerHTML = `Hour ${cN(clockLabel(mod(N, 24)))} to ${cN(clockLabel(mod(N + 1, 24)))} takes`;
         $('rate').textContent = fmtRate(t1 - t0);
       }
       const sp = speedAt(now), trend = speedAt(now + 600000) - sp;
@@ -1951,7 +2012,7 @@
   // ---------- Updates ----------
   // Fetches the latest service worker; a new one installs, takes over and
   // the page reloads into the new version.
-  const APP_VERSION = 5;
+  const APP_VERSION = 6;
   $('updateBtn').onclick = async () => {
     const msg = $('updateMsg');
     const reg = 'serviceWorker' in navigator && window.isSecureContext && await navigator.serviceWorker.getRegistration().catch(() => null);
