@@ -328,6 +328,8 @@
       <!-- Day and night fill: follows the sunrise and sunset of the filled hand set. -->
       <path id="nightFill" fill="rgba(0,0,20,0.35)"/>
       <path id="dayFill" fill="rgba(140,190,255,0.16)"/>
+      <!-- Seam opposite the main hour hand, where 6 (or 12) hours ago meets 6 (or 12) hours ahead. -->
+      <path id="seam" stroke="rgba(255,255,255,0.28)" stroke-width="0.6" stroke-dasharray="1.2 1.8" fill="none"/>
       <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
       <g class="sunlines" id="linesNorm" style="color: var(--norm)"></g>
       <g class="sunlines" id="linesReal" style="color: var(--real)"></g>
@@ -437,7 +439,7 @@
         <li><svg viewBox="0 0 26 12" aria-hidden="true"><rect x="2" y="1" width="11" height="10" fill="rgba(140,190,255,0.35)"/><rect x="13" y="1" width="11" height="10" fill="rgba(0,0,20,0.6)"/></svg><span>Light and dark fill: sun up and sun down, by the main hands.</span></li>
         <li><svg viewBox="0 0 26 12" aria-hidden="true"><circle cx="13" cy="6" r="5" fill="none" stroke="var(--muted)" stroke-width="1"/><text x="13" y="6.4" font-size="6" fill="var(--muted)" text-anchor="middle" dominant-baseline="central">60</text></svg><span>Hour hands read the hour face. Minute and second hands read the 0 to 60 ring, millisecond hands the 0 to 1000 ring.</span></li>
         <li><svg viewBox="0 0 26 12" aria-hidden="true"><line x1="2" y1="6" x2="20" y2="6" stroke="var(--text)" stroke-width="1" stroke-dasharray="2 1.5"/><circle cx="21" cy="6" r="3" fill="var(--text)"/></svg><span>Ruler hands: one each for hours (h), minutes (m), and, when those hands are on, seconds (s) and milliseconds. Drag a knob; each snaps to whole hours, minutes, seconds or 10 ms. Together they set a time on the main clock, and the line under the dial says when that is on both clocks.</span></li>
-        <li><svg viewBox="0 0 26 12" aria-hidden="true"><circle cx="13" cy="6" r="5" fill="none" stroke="var(--muted)" stroke-width="1"/><path d="M13 6V1.5" stroke="var(--text)" stroke-width="1.2"/></svg><span>12-hour dial: light runs clockwise from the sunrise line to the sunset line (or dark from sunset to sunrise, whichever is shorter). With daylight time as the main hands, the face shades the next 12 hours.</span></li>
+        <li><svg viewBox="0 0 26 12" aria-hidden="true"><circle cx="13" cy="6" r="5" fill="none" stroke="var(--muted)" stroke-width="1"/><path d="M13 6V1.5" stroke="var(--text)" stroke-width="1.2"/></svg><span>Shading and labels show the hours within half a face of the main hour hand (6 hours either side on the 12-hour dial), so the hand drags them along like a curtain. The faint dotted seam opposite the hand is where hours ago meet hours ahead.</span></li>
       </ul>
       <p class="note">Sunrise is always 6:00 AM and sunset 6:00 PM; the hours between stretch or shrink to fit. With smooth daylight rate on, the clock speeds up and slows down gradually instead of snapping at sunrise and sunset, and still hits 6:00 at both. Real times are in the selected location's time zone. Tap the mini globe or the place name to change location.</p>
     </section>
@@ -486,9 +488,10 @@
     <h3>Changelog</h3>
     <div class="update-row">
       <button id="updateBtn" type="button">Check for update</button>
-      <span id="updateMsg">Version 6</span>
+      <span id="updateMsg">Version 7</span>
     </div>
     <ul class="log">
+      <li><b>7</b><span>2026-11-04: Day/night shading follows the main hour hand like a curtain: each spot is lit if the sun is up when the hand points there, on both dials, for real and daylight hands, including polar day and night; sun lines and 12-hour labels follow the same rule, with a faint seam opposite the hand.</span></li>
       <li><b>6</b><span>2026-11-04: The 12-hour dial shades from the sunrise line to the sunset line; the hour hand is now the brightest of each set; the rate graph always fits exactly 24 hours, in steps of 1 to 15 minutes, with its details in a strip below it; times show in their clock's color; label density covers the 0 to 60 ring; separate ruler hands for hours, minutes, seconds and milliseconds.</span></li>
       <li><b>5</b><span>2026-11-03: Smooth daylight rate option; rate graph with hover details and scales; bigger clock; Details, Rate, Display and Legend tabs that collapse; dashboard layout on wide screens; ruler snaps to the nearest ring; black triangles where the clocks are furthest apart and a progress arc to the next triangle; main-hands switch and reset button in Display; Phosphor is the default theme; the 12-hour dial now shades and labels the 6 hours either side of the hand.</span></li>
       <li><b>4</b><span>2026-11-02: Real time is the main hand set by default (hour and minute hands, 24-hour dial, AM/PM labels); the digital clock and time tile follow the filled hands; the 12-hour dial shows the hand's next pass; millisecond hands and ring; draggable ruler hand; label density slider; tap the place name or mini globe to change location.</span></li>
@@ -811,15 +814,17 @@
   function drawNumbers() {
     nums.innerHTML = '';
     const step = DENS[density][0], list = [];
-    // 12-hour dial: plain clock numbers, 12 at the top.
-    for (let h = 0; h < (dial12 ? 12 : 24); h += step) list.push(h);
+    // 12-hour dial: each spot is labelled with the hour it stands for within
+    // 6 hours of the main hour hand, the same window the shading uses.
+    if (dial12) for (let i = 0; i < 12; i += step) { const lo = vNow - 6; list.push(mod(Math.round(lo + mod(i - lo, 12)), 24)); }
+    else for (let h = 0; h < 24; h += step) list.push(h);
     nums.setAttribute('font-size', !dial12 && step === 1 ? 7.8 : 10);
     for (const h of list) {
       const [x, y] = pt(hourDeg(h), 74.5);
       // Daylight time's sunrise and sunset hours stand out, in its hand color.
       const special = filled === 'norm' && (h === 6 || h === 18);
       nums.insertAdjacentHTML('beforeend',
-        `<text x="${f2(x)}" y="${f2(y)}"${special ? ' font-weight="700"' : ''}>${dial12 ? String(h || 12) : hourLabel(h)}</text>`);
+        `<text x="${f2(x)}" y="${f2(y)}"${special ? ' font-weight="700"' : ''}>${hourLabel(h)}</text>`);
     }
   }
   drawTicks();
@@ -1062,41 +1067,41 @@
     return out;
   }
   let deco = null, inner = null;
-  const decoKey = () => cache.at + (dial12 ? ':' + Math.floor(vNow * 60) : '');
+  const decoKey = () => cache.at + ':' + Math.floor(vNow * 60);
+  // A clock's hours counted up without wrapping.
+  const unwrappedOf = set => set === 'real' ? (t => t / 3600000) : (t => dayHourAt(t));
   function drawDeco(now, r) {
     deco = { key: decoKey() };
-    const isDay = r.phase === 'day';
-    const rise = isDay ? r.start : r.end, set = isDay ? r.end : r.start;
-    // Real sunrise hour and day length, in the location's zone.
-    let realLen = isDay ? r.end - r.start : (r.nextDay ? r.nextDay[1] - r.nextDay[0] : 0);
-    realLen = Math.max(0, Math.min(24, realLen / 3600000));
-    const realRise = realHourAt(isDay ? r.start : r.end);
-    const day = filled === 'norm' ? { start: 6, len: 12 } : { start: realRise, len: realLen };
-    // 12-hour dial: a day can't fit on it twice, so shade the shorter of day
-    // and night as one wedge between its sun lines (light from the sunrise
-    // line round to the sunset line, or dark from sunset round to sunrise)
-    // and give the rest of the face to the other. When they are exactly 12
-    // hours each (daylight time as the main hands), the face shows the next
-    // 12 hours from the hand instead.
-    let dayParts, nightParts;
-    const nStart = day.start + day.len, nLen = 24 - day.len;
-    if (!dial12) {
-      dayParts = clip(day.start, day.len, 0, 24);
-      nightParts = clip(nStart, nLen, 0, 24);
-    } else if (Math.abs(day.len - 12) < 0.02) {
-      dayParts = clip(day.start, day.len, vNow, vNow + 12);
-      nightParts = clip(nStart, nLen, vNow, vNow + 12);
-    } else if (day.len < 12) {
-      dayParts = [[day.start, nStart]];
-      nightParts = [[nStart, day.start + 12]];
-    } else {
-      nightParts = [[nStart, nStart + nLen]];
-      dayParts = [[nStart + nLen, nStart + 12]];
+    if (dial12) drawNumbers();
+    // The face shows the hours within half a face of the main hour hand: 6
+    // hours either side on the 12-hour dial, 12 on the 24-hour dial. Each spot
+    // is shaded by whether the sun is up at the moment the main hour hand
+    // points there, so the hand drags the shading along like a curtain, and
+    // the seam where the far past meets the far future sits opposite the hand.
+    // This is the same rule the inner ring and the outer labels follow.
+    const half = dial12 ? 6 : 12, L = knotsAt(now);
+    // Walk the sun's day and night spans (between sunrise and sunset knots),
+    // measured in the main clock's own hours, and keep what falls in view.
+    // Where the sun only grazes the horizon, daylight time jumps 12 hours in
+    // an instant; that jump takes the sun's real state at that instant
+    // (still up in polar day, still down in polar night).
+    const F0 = unwrappedOf(filled)(now), lo = F0 - half, hi = F0 + half;
+    const hrs = k => filled === 'norm' ? k.h : k.t / 3600000;
+    const dayParts = [], nightParts = [];
+    for (let i = 0; i + 1 < L.length; i++) {
+      const a = Math.max(lo, hrs(L[i])), b = Math.min(hi, hrs(L[i + 1]));
+      if (b <= a) continue;
+      const startsAtRise = mod(L[i].h, 24) === 6, instant = L[i + 1].t <= L[i].t;
+      (startsAtRise !== instant ? dayParts : nightParts).push([vNow + a - F0, vNow + b - F0]);
     }
     $('dayFill').setAttribute('d', dayParts.map(p => wedge(...p)).join(''));
     $('nightFill').setAttribute('d', nightParts.map(p => wedge(...p)).join(''));
+    const [sx, sy] = pt(hourDeg(vNow + half), 92), [ix, iy] = pt(hourDeg(vNow + half), 20);
+    $('seam').setAttribute('d', `M${f2(ix)} ${f2(iy)}L${f2(sx)} ${f2(sy)}`);
 
-    // Lines from the hub to the rim at each set's sunrise and sunset.
+    // Lines from the hub to the rim at each set's sunrise and sunset, where
+    // that set's hour hand will point (or pointed) at the moment, for the
+    // sun events within half a face of that hand.
     // Each line breaks around the hour-label circle so the labels stay readable.
     const line = (h, title) => {
       const d = hourDeg(h), seg = (r0, r1) => {
@@ -1105,9 +1110,23 @@
       };
       return seg(6, 67) + seg(82, 93);
     };
-    $('linesNorm').innerHTML = line(6, 'Daylight sunrise, 6:00 AM') + line(18, 'Daylight sunset, 6:00 PM');
-    $('linesReal').innerHTML = r.today.polar ? '' :
-      line(realRise, `Sunrise, ${fmtReal(rise)}`) + line(realHourAt(set), `Sunset, ${fmtReal(set)}`);
+    const lines = set => {
+      const U = unwrappedOf(set), U0 = U(now), cur = set === 'real' ? realHourAt(now) : normAt(now);
+      let out = '';
+      for (let i = 0; i < L.length; i++) {
+        const k = L[i], du = U(k.t) - U0;
+        if (Math.abs(du) >= half) continue;
+        // Where the sun only grazes the horizon (polar day or night), real
+        // time has no sunrise or sunset to mark.
+        const merged = (i > 0 && L[i - 1].t === k.t) || (i + 1 < L.length && L[i + 1].t === k.t);
+        if (set === 'real' && merged) continue;
+        const rise = mod(k.h, 24) === 6;
+        out += line(cur + du, set === 'real' ? `${rise ? 'Sunrise' : 'Sunset'}, ${fmtReal(k.t)}` : `Daylight ${rise ? 'sunrise, 6:00 AM' : 'sunset, 6:00 PM'}`);
+      }
+      return out;
+    };
+    $('linesNorm').innerHTML = lines('norm');
+    $('linesReal').innerHTML = lines('real');
   }
 
   // With the hollow set hidden, an inner ring of its hours sits where the
@@ -1440,6 +1459,9 @@
   applyTheme(theme);
   applyHands();
   applyLayout();
+
+  // Read-only hook for automated tests.
+  window.__dlc = { dayHourAt, normAt, realHourAt, hourDeg, get vNow() { return vNow; }, get filled() { return filled; } };
 
   // ---------- Render loop ----------
   // Only touch the DOM when a line's text actually changes.
@@ -2012,7 +2034,7 @@
   // ---------- Updates ----------
   // Fetches the latest service worker; a new one installs, takes over and
   // the page reloads into the new version.
-  const APP_VERSION = 6;
+  const APP_VERSION = 7;
   $('updateBtn').onclick = async () => {
     const msg = $('updateMsg');
     const reg = 'serviceWorker' in navigator && window.isSecureContext && await navigator.serviceWorker.getRegistration().catch(() => null);
